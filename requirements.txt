@@ -1,0 +1,3 @@
+mido==1.2.8
+python-rtmidi==1.1.0
+SimpleWebSocketServer==0.1.0
