@@ -1,3 +1,3 @@
-from server.server import run
+from server.one_big_file import run
 
 run()
