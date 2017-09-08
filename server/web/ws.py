@@ -7,6 +7,8 @@ clients = []
 CUTOFF = 43
 RESONNANCE = 44
 
+proxy = MidiProxy()
+
 
 def parse(data):
     d = json.loads(data)

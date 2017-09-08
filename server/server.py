@@ -3,7 +3,6 @@ from .web.ws import run as ws_run
 from .web.http import run as http_run
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
-
 import threading
 
 # ACCEL_SRV = 'E95D0753-251D-470A-A062-FA1922DFA9A8'
