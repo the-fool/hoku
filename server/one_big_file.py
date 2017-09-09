@@ -2,25 +2,74 @@ from bluezero import microbit, tools, constants
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
+from urllib.parse import urlparse, parse_qs
+
 import time
 import random
 import mido
 import json
 import threading
-
+import sys
 import http.server
 import socketserver
+import logging
 
-loop = None
 HTTP_PORT = 5555
 WS_PORT = 4444
-clients = []
-socketserver.TCPServer.allow_reuse_address = True
 
-minilogue_1 = None
+CLIENT_LOCK = threading.Lock()
+clients = set()
+
+socketserver.TCPServer.allow_reuse_address = True
 
 # ACCEL_SRV = 'E95D0753-251D-470A-A062-FA1922DFA9A8'
 # ACCEL_DATA = 'E95DCA4B-251D-470A-A062-FA1922DFA9A8'
+
+sequencer = None
+worker = None
+metronome = None
+
+metaball = None
+
+
+class ClientPool:
+    def __init__(self):
+        self.pool = set()
+        self.lock = threading.Lock()
+
+    def add(self, client):
+        with self.lock:
+            self.pool.add(client)
+
+    def remove(self, client):
+        with self.lock:
+            self.pool.remove(client)
+
+    def get(self, client):
+        p = []
+        with self.lock:
+            p = [c for c in self.pool]
+        return p
+
+
+class Metaball:
+    def __init__(self, instrument_cb):
+        self.n_steps = 8
+        self.instrument_cb = instrument_cb
+        self.data = [0] * self.n_steps
+
+    def set_data_point(self, i, v):
+        self.data[i] = v
+
+    def set_data_points(self, data):
+        self.data = [0] * self.n_steps
+        for d in data:
+            self.data[d['i']] = d['value']
+
+    def beat(self, note, step):
+        step = step % self.n_steps
+        val = self.data[step] * 80 + 40
+        self.instrument_cb(val)
 
 
 class BaseInstrument:
@@ -61,17 +110,24 @@ class BaseInstrument:
 
 
 class Minilogue(BaseInstrument):
+    AMP_DECAY = 11
     VOICE_MODE = 27
     CUTOFF = 43
     RESONANCE = 44
     LFO_RATE = 24
     LFO_INT = 26
 
+    def amp_decay(self, value):
+        self._control(self.AMP_DECAY, value)
+
     def cutoff(self, value):
         self._control(self.CUTOFF, value)
 
     def resonance(self, value):
         self._control(self.RESONANCE, value)
+
+    def beat(self, note, step):
+        self.note_on(note=note)
 
 
 class HttpHandler(http.server.SimpleHTTPRequestHandler):
@@ -146,18 +202,14 @@ def connect_to_vozuz():
         exit(1)
 
     print('Subscribing to accel')
-    vozuz.subscribe_accel(lambda l, data, sig: print('got: {}'.format(tools.bytes_to_xyz(data['Value']))))
+    # vozuz.subscribe_accel(lambda l, data, sig:
+    # print('got: {}'.format(tools.bytes_to_xyz(data['Value']))))
 
     print('Setting up dbus loop')
     setup_dbus_loop()
 
     print('Running main loop')
     run_dbus_loop()
-
-
-def parse(data):
-    d = json.loads(data)
-    return d
 
 
 def translate(value, leftMin, leftMax, rightMin, rightMax):
@@ -176,62 +228,205 @@ def cent_to_midi(value):
     return translate(value, 0, 100, 0, 127)
 
 
+def particles_cb(data):
+    cut = cent_to_midi(data['x'])
+    res = cent_to_midi(data['y'])
+
+    minilogue_1.cutoff(cut)
+    minilogue_1.resonance(res)
+
+
+behaviors = {
+    'particles': particles_cb,
+    'metaball': lambda data: metaball.set_data_points(data)
+}
+
+
 class Handler(WebSocket):
+    def parse_url(self):
+        qs = parse_qs(urlparse(self.request.path).query)
+        self.name = qs.get('name', None)[0]
+
     def handleConnected(self):
-        print(self.address, 'connected')
-        clients.append(self)
+        logging.debug('{} connected'.format(self.request.path))
+        self.parse_url()
+        with CLIENT_LOCK:
+            clients.add(self)
 
     def handleClose(self):
-        clients.remove(self)
-        print(self.address, 'closed')
+        with CLIENT_LOCK:
+            clients.remove(self)
+        logging.debug('{} closed'.format(self))
 
     def handleMessage(self):
-        data = parse(self.data)
-        print(data)
-        cut = cent_to_midi(data['x'])
-        res = cent_to_midi(data['y'])
+        data = json.loads(self.data)
+        logging.debug('{}'.format(data))
+        print(self.name)
+        behaviors[self.name](data)
 
-        minilogue_1.cutoff(cut)
-        minilogue_1.resonance(res)
 
-class Looper:
-    def __init__(self, bpm=240):
+def broadcast_clients(msg=''):
+    local_clients = []
+    with CLIENT_LOCK:
+        local_clients = [x for x in clients]
+    for client in local_clients:
+        client.sendMessage(msg)
+
+
+def broadcast_sequencer_to_clients(note, step):
+    broadcast_clients(json.dumps({'note': note, 'step': step}))
+
+
+LCD = [
+    60, 60, 58, 58,
+    60, 60, 58, 58,
+    60, 60, 58, 63,
+    63, 63, 58, 58
+]
+
+class Sequencer:
+    def __init__(self, notes=None, step_length=32):
+        self.step = 0
+        self.step_length = step_length
+        self.notes = notes or [
+            random.randrange(20, 80, 2) for _ in range(self.step_length)
+        ]
+        self.on_step_cbs = set()
+        self.lock = threading.Lock()
+
+    def beat(self, ts):
+        with self.lock:
+            for cb in self.on_step_cbs:
+                cb(note=self.notes[self.step], step=self.step)
+            self.step = (self.step + 1) % self.step_length
+
+    def register_cb(self, cb):
+        """
+        cb is a callable with args (note: int, step: int)
+        """
+        with self.lock:
+            self.on_step_cbs.add(cb)
+
+    def change_note(self, i, note):
+        with self.lock:
+            self.notes[i] = note
+
+
+class Worker:
+    def __init__(self):
+        self.cv = threading.Condition()
+        self.q = []
+
+    def consume(self):
+        while True:
+            local_q = []
+            with self.cv:
+                while len(self.q) == 0:
+                    self.cv.wait()
+                local_q = [task for task in self.q]
+                self.q = []
+            for task in local_q:
+                task['cb'](*task['args'], **task['kwargs'])
+
+    def add(self, task, *args, **kwargs):
+        with self.cv:
+            self.q.append({'cb': task, 'args': args, 'kwargs': kwargs})
+            self.cv.notify_all()
+
+    def add_all(self, tasks, *args, **kwargs):
+        with self.cv:
+            self.q.extend([{
+                'cb': task,
+                'args': args,
+                'kwargs': kwargs
+            } for task in tasks])
+            self.cv.notify_all()
+
+
+class Metronome:
+    def __init__(self, worker, bpm=110, steps=4):
+        self.ts = 0
         self.bpm = bpm
+        self.steps = steps
+        self.lock = threading.Lock()
+        self.cbs = set()
+        self.worker = worker
+
+    def register_cb(self, cb):
+        with self.lock:
+            self.cbs.add(cb)
 
     def loop(self):
-        time.sleep(60 / self.bpm)
-        note = random.randint(-15, 15)
-        minilogue_1.note_off(note=60 + note)
-        minilogue_1.note_on(note=60 + note)
-        self.loop()
+        sleep_offset = 0
+        while True:
+            print(sleep_offset)
+            sleep_time = max(0, (60 / self.bpm / self.steps - sleep_offset))
+            time.sleep(sleep_time)
+            t = time.time()
+            with self.lock:
+                self.worker.add_all([task for task in self.cbs], self.ts)
+            self.ts = self.ts + 1
+            sleep_offset = time.time() - t
 
 
 def run_ws():
     server = SimpleWebSocketServer(
-        '0.0.0.0', 4444, Handler, selectInterval=0.01)
-    print('Server starting...')
+        '0.0.0.0', 4444, Handler, selectInterval=0.005)
+    logging.debug('Server starting...')
     server.serveforever()
-    print('Server exited unexpectedly ...')
+    logging.debug('Server exited unexpectedly ...')
 
 
 def run_http():
-    httpd = socketserver.TCPServer(("", HTTP_PORT), HttpHandler)
-    print("serving at port", HTTP_PORT)
+    httpd = socketserver.TCPServer(("0.0.0.0", HTTP_PORT), HttpHandler)
+    logging.debug("serving at port {}".format(HTTP_PORT))
     httpd.serve_forever()
 
+def metaball_cb(minilogue):
+    def do_it(val):
+        # minilogue.amp_decay(val / 2)
+        minilogue.cutoff(val)
+    return do_it
 
 def run():
     global minilogue_1
+    global sequencer
+    global worker
+    global metronome
+    global metaball
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(relativeCreated)6d %(threadName)s %(message)s')
+
     minilogue_1 = Minilogue('minilogue:minilogue MIDI 2 20:1')
+    worker = Worker()
+    metronome = Metronome(worker)
+    sequencer = Sequencer(notes=LCD, step_length=len(LCD))
 
-    looper = Looper()
-    loop = threading.Thread(target=looper.loop, args=())
-    ws = threading.Thread(target=run_ws, args=())
-    http = threading.Thread(target=run_http, args=())
-    ws.start()
-    http.start()
-    loop.start()
+    metaball = Metaball(metaball_cb(minilogue_1))
+    metronome.register_cb(sequencer.beat)
 
-    ws.join()
-    loop.join()
-    http.join()
+    sequencer.register_cb(broadcast_sequencer_to_clients)
+    sequencer.register_cb(metaball.beat)
+    sequencer.register_cb(minilogue_1.beat)
+
+    clock_t = threading.Thread(target=metronome.loop, args=(), daemon=True)
+    ws_t = threading.Thread(target=run_ws, args=(), daemon=True)
+    http_t = threading.Thread(target=run_http, args=(), daemon=True)
+    worker_t = threading.Thread(target=worker.consume, args=(), daemon=True)
+
+    ws_t.start()
+    http_t.start()
+    clock_t.start()
+    worker_t.start()
+
+    try:
+        ws_t.join()
+        clock_t.join()
+        http_t.join()
+        worker_t.join()
+    except (KeyboardInterrupt, ):
+        for i in range(127):
+            minilogue_1.note_off(i)
+        sys.exit()
