@@ -89,15 +89,13 @@ class BaseInstrument:
         return x
 
     def note_on(self, note, velocity=127):
-        self._note('note_on', note, velocity)
-
-    def note_off(self, note, velocity=127):
-        self._note('note_off', note, velocity)
-
-    def _note(self, kind, note, velocity):
         note = BaseInstrument.midify(note)
         velocity = BaseInstrument.midify(velocity)
-        self._out_msg(kind, note=note, velocity=velocity)
+        self._out_msg('note_on', note=note, velocity=velocity)
+
+    def note_off(self, note):
+        note = BaseInstrument.midify(note)
+        self._out_msg('note_off', note=note)
 
     def _control(self, control, value):
         control = BaseInstrument.midify(control)
@@ -126,8 +124,11 @@ class Minilogue(BaseInstrument):
     def resonance(self, value):
         self._control(self.RESONANCE, value)
 
-    def beat(self, note, step):
+    def beat_on(self, note, step):
         self.note_on(note=note)
+
+    def beat_off(self, note, step):
+        self.note_off(note=note)
 
 
 class HttpHandler(http.server.SimpleHTTPRequestHandler):
@@ -281,31 +282,45 @@ LCD = [
     60, 60, 58, 58,
     60, 60, 58, 58,
     60, 60, 58, 63,
-    63, 63, 58, 58
+    -1, 63, 58, 58
 ]
 
+
 class Sequencer:
-    def __init__(self, notes=None, step_length=32):
+    def __init__(self, notes=None):
+        self.off_note = 0
         self.step = 0
-        self.step_length = step_length
         self.notes = notes or [
-            random.randrange(20, 80, 2) for _ in range(self.step_length)
+            random.randrange(20, 80, 2) for _ in range(32)
         ]
-        self.on_step_cbs = set()
+        self.on_step_cbs = []
         self.lock = threading.Lock()
 
     def beat(self, ts):
         with self.lock:
-            for cb in self.on_step_cbs:
-                cb(note=self.notes[self.step], step=self.step)
-            self.step = (self.step + 1) % self.step_length
+            note = self.notes[self.step]
+            if note is not 0:
+                for cb in self.on_step_cbs:
+                    # when note is == 0, hold
+                    # when note is < 0, rest
+                    off = cb.get('off', None)
+                    if off:
+                        off(note=self.off_note, step=self.step)
+            if note > 0:
+                self.off_note = note
+                for cb in self.on_step_cbs:
+                    on = cb.get('on', None)
+                    if on:
+                        on(note=note, step=self.step)
+            self.step = (self.step + 1) % len(self.notes)
 
     def register_cb(self, cb):
         """
-        cb is a callable with args (note: int, step: int)
+        cb is a dict with 2 callables with args (note: int, step: int)
+        'on' & 'off' are the keys
         """
         with self.lock:
-            self.on_step_cbs.add(cb)
+            self.on_step_cbs.append(cb)
 
     def change_note(self, i, note):
         with self.lock:
@@ -359,7 +374,6 @@ class Metronome:
     def loop(self):
         sleep_offset = 0
         while True:
-            print(sleep_offset)
             sleep_time = max(0, (60 / self.bpm / self.steps - sleep_offset))
             time.sleep(sleep_time)
             t = time.time()
@@ -382,11 +396,13 @@ def run_http():
     logging.debug("serving at port {}".format(HTTP_PORT))
     httpd.serve_forever()
 
+
 def metaball_cb(minilogue):
     def do_it(val):
         # minilogue.amp_decay(val / 2)
         minilogue.cutoff(val)
     return do_it
+
 
 def run():
     global minilogue_1
@@ -402,14 +418,17 @@ def run():
     minilogue_1 = Minilogue('minilogue:minilogue MIDI 2 20:1')
     worker = Worker()
     metronome = Metronome(worker)
-    sequencer = Sequencer(notes=LCD, step_length=len(LCD))
+    sequencer = Sequencer(notes=LCD)
 
     metaball = Metaball(metaball_cb(minilogue_1))
     metronome.register_cb(sequencer.beat)
 
-    sequencer.register_cb(broadcast_sequencer_to_clients)
-    sequencer.register_cb(metaball.beat)
-    sequencer.register_cb(minilogue_1.beat)
+    sequencer.register_cb({'on': broadcast_sequencer_to_clients})
+    sequencer.register_cb({'on': metaball.beat})
+    sequencer.register_cb({
+        'on': minilogue_1.beat_on,
+        'off': minilogue_1.beat_off
+    })
 
     clock_t = threading.Thread(target=metronome.loop, args=(), daemon=True)
     ws_t = threading.Thread(target=run_ws, args=(), daemon=True)
