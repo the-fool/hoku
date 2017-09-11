@@ -6,6 +6,7 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "microbit": "lancaster-university/microbit"
+    "microbit": "lancaster-university/microbit",
+    "ubit-neopixel": "~0.0.0"
   }
 }
