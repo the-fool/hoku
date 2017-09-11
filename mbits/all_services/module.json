@@ -1,6 +1,7 @@
 {
   "name": "mu",
   "version": "0.0.0",
+  "bin": "./source",
   "keywords": [],
   "author": "",
   "license": "Apache-2.0",
