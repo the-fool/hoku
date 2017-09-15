@@ -43,8 +43,6 @@ class Metaball:
         self.instrument_cb(val)
 
 
-
-
 class MyMicrobit(microbit.Microbit):
     UART_SRV = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
     UART_DATA = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
@@ -151,7 +149,7 @@ def connect_to_vozuz():
         print('Failed to find VOZUZ')
         exit(1)
 
-        print('Connecting to VOZUZ')
+    print('Connecting to VOZUZ')
     if not connect_mbit(vozuz):
         print('Failed to connect to VOZUZ')
         exit(1)
@@ -301,7 +299,7 @@ def metaball_cb(minilogue):
 
 
 def broadcast_sequencer_to_clients(client_pool):
-    return lambda (note, step): client_pool.broadcast(
+    return lambda note, step: client_pool.broadcast(
         json.dumps({'note': note, 'step': step}))
 
 
@@ -318,7 +316,7 @@ def run():
         level=logging.DEBUG,
         format='%(relativeCreated)6d %(threadName)s %(message)s')
 
-    minilogue_1 = Minilogue('minilogue:minilogue MIDI 2 20:1')
+    minilogue_1 = Minilogue('MIDI4x4:MIDI4x4 MIDI 3 20:2')
     worker = Worker()
     metronome = Metronome(worker)
     sequencer = Sequencer(notes=LCD)
