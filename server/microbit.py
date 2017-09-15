@@ -28,6 +28,14 @@ class MyMicrobit(microbit.Microbit):
             error_handler=dbus_tools.generic_error_cb,
             dbus_interface=constants.GATT_CHRC_IFACE)
 
+    @property
+    def device_addr(self):
+        return str(self.ubit.rmt_device.address)
+
+    @property
+    def adapter_addr(self):
+        return str(self.ubit.dongle.address)
+
     def subscribe_uart(self, cb):
         self._subscribe(self._uart_data, cb)
 

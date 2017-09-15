@@ -7,9 +7,9 @@ from .ws_server import run_ws_server
 from .http_server import run_http_server
 from .microbit import MyMicrobit
 from .client_pool import ClientPool
+from .modules import Sequencer
+from .modules import Metronome
 
-import time
-import random
 import json
 import threading
 import sys
@@ -84,10 +84,11 @@ def log_vozuz(l, data, sig):
 
 
 def vozuz_uart(l, data, sig):
-    val = int(''.join(chr(c) for c in data['Value']))
-    val = abs(val)
-    val = translate(val, 0, 180, 0, 127)
-    minilogue_1.cutoff(val)
+    print(data.get('Value', None))
+    #val = int(''.join(chr(c) for c in data['Value']))
+    #val = abs(val)
+    #val = translate(val, 0, 180, 0, 127)
+    # minilogue_1.cutoff(val)
 
 
 # BEGIN MAIN
@@ -145,44 +146,6 @@ behaviors = {
 LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
 
 
-class Sequencer:
-    def __init__(self, notes=None):
-        self.off_note = 0
-        self.step = 0
-        self.notes = notes or [random.randrange(20, 80, 2) for _ in range(32)]
-        self.on_step_cbs = []
-        self.lock = threading.Lock()
-
-    def beat(self, ts):
-        with self.lock:
-            note = self.notes[self.step]
-            if note is not 0:
-                for cb in self.on_step_cbs:
-                    # when note is == 0, hold
-                    # when note is < 0, rest
-                    off = cb.get('off', None)
-                    if off:
-                        off(note=self.off_note, step=self.step)
-            if note > 0:
-                self.off_note = note
-                for cb in self.on_step_cbs:
-                    on = cb.get('on', None)
-                    if on:
-                        on(note=note, step=self.step)
-            self.step = (self.step + 1) % len(self.notes)
-
-    def register_cb(self, cb):
-        """
-        cb is a dict with 2 callables with args (note: int, step: int)
-        'on' & 'off' are the keys
-        """
-        with self.lock:
-            self.on_step_cbs.append(cb)
-
-    def change_note(self, i, note):
-        with self.lock:
-            self.notes[i] = note
-
 
 class Worker:
     def __init__(self):
@@ -214,30 +177,6 @@ class Worker:
             } for task in tasks])
             self.cv.notify_all()
 
-
-class Metronome:
-    def __init__(self, worker, bpm=110, steps=4):
-        self.ts = 0
-        self.bpm = bpm
-        self.steps = steps
-        self.lock = threading.Lock()
-        self.cbs = set()
-        self.worker = worker
-
-    def register_cb(self, cb):
-        with self.lock:
-            self.cbs.add(cb)
-
-    def loop(self):
-        sleep_offset = 0
-        while True:
-            sleep_time = max(0, (60 / self.bpm / self.steps - sleep_offset))
-            time.sleep(sleep_time)
-            t = time.time()
-            with self.lock:
-                self.worker.add_all([task for task in self.cbs], self.ts)
-            self.ts = self.ts + 1
-            sleep_offset = time.time() - t
 
 
 def metaball_cb(minilogue):
