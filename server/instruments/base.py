@@ -18,19 +18,17 @@ class BaseInstrument:
         return x
 
     def note_on(self, note, velocity=127):
-        self._note('note_on', note, velocity)
-
-    def note_off(self, note, velocity=127):
-        self._note('note_off', note, velocity)
-
-    def _note(self, kind, note, velocity):
         note = BaseInstrument.midify(note)
-        velocity = BaseInstrument.midify(velocity)
-        self._out_msg(kind, note=note, velocity=velocity)
+        velocity = self.midify(velocity)
+        self._out_msg('note_on', note=note, velocity=velocity)
+
+    def note_off(self, note):
+        note = BaseInstrument.midify(note)
+        self._out_msg('note_off', note=note)
 
     def _control(self, control, value):
-        control = BaseInstrument.midify(control)
-        value = BaseInstrument.midify(value)
+        control = self.midify(control)
+        value = self.midify(value)
         self._out_msg('control_change', control=control, value=value)
 
     def _out_msg(self, kind, **kwargs):
