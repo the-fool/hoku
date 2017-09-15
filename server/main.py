@@ -1,11 +1,11 @@
-from bluezero import microbit, tools, constants, dbus_tools
+from bluezero import tools
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 
 from .instruments.minilogue import Minilogue
 from .ws_server import run_ws_server
 from .http_server import run_http_server
-
+from .microbit import MyMicrobit
 from .client_pool import ClientPool
 
 import time
@@ -43,54 +43,6 @@ class Metaball:
         self.instrument_cb(val)
 
 
-class MyMicrobit(microbit.Microbit):
-    UART_SRV = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
-    UART_DATA = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._uart_data = self.ubit.add_characteristic(self.UART_SRV,
-                                                       self.UART_DATA)
-
-    def _accel_notify_cb(self):
-        print('Accel subscribed!!!')
-        return 1
-
-    def subscribe_uart(self, cb):
-        self._uart_data.resolve_gatt()
-
-        path = dbus_tools.get_dbus_path(
-            characteristic=self.UART_DATA,
-            device='DE:ED:5C:B4:E3:73',
-            adapter='5C:F3:70:81:F3:66')
-
-        obj = dbus_tools.get_dbus_obj(path)
-
-        iface = dbus_tools.get_dbus_iface(constants.DBUS_PROP_IFACE, obj)
-
-        iface.connect_to_signal('PropertiesChanged', cb)
-        obj.StartNotify(
-            reply_handler=self._accel_notify_cb,
-            error_handler=dbus_tools.generic_error_cb,
-            dbus_interface=constants.GATT_CHRC_IFACE)
-
-    def subscribe_accel(self, user_callback):
-        self._accel_data.resolve_gatt()
-        accel_path = dbus_tools.get_dbus_path(
-            characteristic='E95DCA4B-251D-470A-A062-FA1922DFA9A8',
-            device='DE:ED:5C:B4:E3:73',
-            adapter='5C:F3:70:81:F3:66')
-
-        accel_obj = dbus_tools.get_dbus_obj(accel_path)
-        accel_iface = dbus_tools.get_dbus_iface(constants.DBUS_PROP_IFACE,
-                                                accel_obj)
-        accel_iface.connect_to_signal('PropertiesChanged', user_callback)
-        accel_obj.StartNotify(
-            reply_handler=self._accel_notify_cb,
-            error_handler=dbus_tools.generic_error_cb,
-            dbus_interface=constants.GATT_CHRC_IFACE)
-
-
 def find_mbit(name):
     adapter_addr = '5C:F3:70:81:F3:66'
     if name == 'vozuz':
@@ -103,8 +55,7 @@ def find_mbit(name):
 
 def connect_mbit(m):
     try:
-        m.ubit.rmt_device.connect()
-        time.sleep(3)
+        m.connect()
         return True
     except:
         return False
@@ -129,9 +80,7 @@ def log_vozuz(l, data, sig):
     x = tools.bytes_to_xyz(data['Value'])[0]
     print('x', x)
     x = x * 60 + 60
-    print('res', x)
     minilogue_1.cutoff(x)
-    print('got: {}'.format(tools.bytes_to_xyz(data['Value'])))
 
 
 def vozuz_uart(l, data, sig):
