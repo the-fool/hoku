@@ -15,8 +15,10 @@ var body = document.getElementById('body');
 var ws = new WebSocket('ws://' + window.location.hostname + ':4444?name=particles');
 
 ws.onmessage = function(e) {
+  var data = JSON.parse(e.data);
+  if (data.step % 4 !== 0) return;
     body.style.transition = '';
-    body.style.background = '#222';
+    body.style.background = '#311';
     setTimeout(() => {
         body.style.transition = 'all .1s';
         body.style.background = '#111';

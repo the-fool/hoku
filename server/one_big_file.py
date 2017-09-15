@@ -1,9 +1,9 @@
-from bluezero import microbit, tools, constants
+from bluezero import microbit, tools, constants, dbus_tools
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 from urllib.parse import urlparse, parse_qs
-
+import math
 import time
 import random
 import mido
@@ -68,7 +68,7 @@ class Metaball:
 
     def beat(self, note, step):
         step = step % self.n_steps
-        val = self.data[step] * 80 + 40
+        val = self.data[step] * 100
         self.instrument_cb(val)
 
 
@@ -108,7 +108,10 @@ class BaseInstrument:
 
 
 class Minilogue(BaseInstrument):
-    AMP_DECAY = 11
+    AMP_ATTACK = 16
+    AMP_DECAY = 17
+    EG_ATTACK = 20
+    EG_DECAY = 21
     VOICE_MODE = 27
     CUTOFF = 43
     RESONANCE = 44
@@ -117,6 +120,9 @@ class Minilogue(BaseInstrument):
 
     def amp_decay(self, value):
         self._control(self.AMP_DECAY, value)
+
+    def eg_decay(self, value):
+        self._control(self.EG_DECAY, value)
 
     def cutoff(self, value):
         self._control(self.CUTOFF, value)
@@ -129,6 +135,9 @@ class Minilogue(BaseInstrument):
 
     def beat_off(self, note, step):
         self.note_off(note=note)
+
+    def voice_mode(self, val):
+        self._control(self.VOICE_MODE, val)
 
 
 class HttpHandler(http.server.SimpleHTTPRequestHandler):
@@ -143,32 +152,68 @@ class HttpHandler(http.server.SimpleHTTPRequestHandler):
 
 
 class MyMicrobit(microbit.Microbit):
+    UART_SRV = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
+    UART_DATA = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._uart_data = self.ubit.add_characteristic(self.UART_SRV,
+                                                       self.UART_DATA)
+
     def _accel_notify_cb(self):
         print('Accel subscribed!!!')
         return 1
 
+
+    def subscribe_uart(self, cb):
+        self._uart_data.resolve_gatt()
+
+        path = dbus_tools.get_dbus_path(
+            characteristic=self.UART_DATA,
+            device='DE:ED:5C:B4:E3:73',
+            adapter='5C:F3:70:81:F3:66')
+
+        obj = dbus_tools.get_dbus_obj(path)
+
+        iface = dbus_tools.get_dbus_iface(constants.DBUS_PROP_IFACE, obj)
+
+        iface.connect_to_signal('PropertiesChanged', cb)
+        obj.StartNotify(
+            reply_handler=self._accel_notify_cb,
+            error_handler=dbus_tools.generic_error_cb,
+            dbus_interface=constants.GATT_CHRC_IFACE)
+
     def subscribe_accel(self, user_callback):
-        accel_obj = tools.get_dbus_obj(constants.BLUEZ_SERVICE_NAME,
-                                       self.accel_data_path)
-        accel_iface = tools.get_dbus_iface(constants.DBUS_PROP_IFACE,
-                                           accel_obj)
+        self._accel_data.resolve_gatt()
+        accel_path = dbus_tools.get_dbus_path(
+            characteristic='E95DCA4B-251D-470A-A062-FA1922DFA9A8',
+            device='DE:ED:5C:B4:E3:73',
+            adapter='5C:F3:70:81:F3:66')
+
+        accel_obj = dbus_tools.get_dbus_obj(accel_path)
+        accel_iface = dbus_tools.get_dbus_iface(constants.DBUS_PROP_IFACE,
+                                                accel_obj)
         accel_iface.connect_to_signal('PropertiesChanged', user_callback)
         accel_obj.StartNotify(
             reply_handler=self._accel_notify_cb,
-            error_handler=tools.generic_error_cb,
+            error_handler=dbus_tools.generic_error_cb,
             dbus_interface=constants.GATT_CHRC_IFACE)
 
 
 def find_mbit(name):
+    adapter_addr = '5C:F3:70:81:F3:66'
+    if name == 'vozuz':
+        device_addr = 'DE:ED:5C:B4:E3:73'
     try:
-        return MyMicrobit(name=name)
+        return MyMicrobit(device_addr=device_addr, adapter_addr=adapter_addr)
     except:
         return None
 
 
-def connect_mbit(mbit):
+def connect_mbit(m):
     try:
-        mbit.connect()
+        m.ubit.rmt_device.connect()
+        time.sleep(3)
         return True
     except:
         return False
@@ -189,6 +234,22 @@ def quit_dbus_loop():
     loop.quit()
 
 
+def log_vozuz(l, data, sig):
+    x = tools.bytes_to_xyz(data['Value'])[0]
+    print('x', x)
+    x = x * 60 + 60
+    print('res', x)
+    minilogue_1.cutoff(x)
+    print('got: {}'.format(tools.bytes_to_xyz(data['Value'])))
+
+
+def vozuz_uart(l, data, sig):
+    val = int(''.join(chr(c) for c in data['Value']))
+    val = abs(val)
+    val = translate(val, 0, 180, 0, 127)
+    minilogue_1.cutoff(val)
+
+
 # BEGIN MAIN
 def connect_to_vozuz():
     print('Finding VOZUZ')
@@ -202,9 +263,8 @@ def connect_to_vozuz():
         print('Failed to connect to VOZUZ')
         exit(1)
 
-    print('Subscribing to accel')
-    # vozuz.subscribe_accel(lambda l, data, sig:
-    # print('got: {}'.format(tools.bytes_to_xyz(data['Value']))))
+    print('Subscribing to uart')
+    vozuz.subscribe_uart(vozuz_uart)
 
     print('Setting up dbus loop')
     setup_dbus_loop()
@@ -233,8 +293,8 @@ def particles_cb(data):
     cut = cent_to_midi(data['x'])
     res = cent_to_midi(data['y'])
 
-    minilogue_1.cutoff(cut)
-    minilogue_1.resonance(res)
+    minilogue_1.amp_decay(cut)
+    minilogue_1.eg_decay(res)
 
 
 behaviors = {
@@ -262,7 +322,6 @@ class Handler(WebSocket):
     def handleMessage(self):
         data = json.loads(self.data)
         logging.debug('{}'.format(data))
-        print(self.name)
         behaviors[self.name](data)
 
 
@@ -278,21 +337,14 @@ def broadcast_sequencer_to_clients(note, step):
     broadcast_clients(json.dumps({'note': note, 'step': step}))
 
 
-LCD = [
-    60, 60, 58, 58,
-    60, 60, 58, 58,
-    60, 60, 58, 63,
-    -1, 63, 58, 58
-]
+LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
 
 
 class Sequencer:
     def __init__(self, notes=None):
         self.off_note = 0
         self.step = 0
-        self.notes = notes or [
-            random.randrange(20, 80, 2) for _ in range(32)
-        ]
+        self.notes = notes or [random.randrange(20, 80, 2) for _ in range(32)]
         self.on_step_cbs = []
         self.lock = threading.Lock()
 
@@ -399,8 +451,9 @@ def run_http():
 
 def metaball_cb(minilogue):
     def do_it(val):
-        # minilogue.amp_decay(val / 2)
-        minilogue.cutoff(val)
+        #minilogue.amp_decay(val + 20)
+        minilogue.voice_mode(val)
+
     return do_it
 
 
@@ -440,6 +493,7 @@ def run():
     clock_t.start()
     worker_t.start()
 
+    connect_to_vozuz()
     try:
         ws_t.join()
         clock_t.join()
