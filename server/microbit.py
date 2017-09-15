@@ -2,6 +2,7 @@ from bluezero import dbus_tools, constants, microbit
 import logging
 import time
 
+
 class MyMicrobit(microbit.Microbit):
     UART_SRV = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
     UART_DATA = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
@@ -20,8 +21,7 @@ class MyMicrobit(microbit.Microbit):
             adapter=self.adapter_addr)
 
         obj = dbus_tools.get_dbus_obj(path)
-        iface = dbus_tools.get_dbus_iface(constants.DBUS_PROP_IFACE,
-                                                obj)
+        iface = dbus_tools.get_dbus_iface(constants.DBUS_PROP_IFACE, obj)
         iface.connect_to_signal('PropertiesChanged', cb)
         obj.StartNotify(
             reply_handler=lambda: logging.debug('subscribed'),

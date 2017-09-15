@@ -3,7 +3,6 @@ from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 from urllib.parse import urlparse, parse_qs
-import math
 import time
 import random
 import mido
