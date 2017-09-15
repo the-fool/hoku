@@ -1,4 +1,3 @@
-from bluezero import tools
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 
@@ -9,38 +8,13 @@ from .microbit import MyMicrobit
 from .client_pool import ClientPool
 from .modules import Sequencer
 from .modules import Metronome
+from .worker import Worker
+from .web_clients import MetaBalls, particles_cb
 
 import json
 import threading
 import sys
 import logging
-
-
-sequencer = None
-worker = None
-metronome = None
-
-metaball = None
-
-
-class Metaball:
-    def __init__(self, instrument_cb):
-        self.n_steps = 8
-        self.instrument_cb = instrument_cb
-        self.data = [0] * self.n_steps
-
-    def set_data_point(self, i, v):
-        self.data[i] = v
-
-    def set_data_points(self, data):
-        self.data = [0] * self.n_steps
-        for d in data:
-            self.data[d['i']] = d['value']
-
-    def beat(self, note, step):
-        step = step % self.n_steps
-        val = self.data[step] * 100
-        self.instrument_cb(val)
 
 
 def find_mbit(name):
@@ -76,18 +50,11 @@ def quit_dbus_loop():
     loop.quit()
 
 
-def log_vozuz(l, data, sig):
-    x = tools.bytes_to_xyz(data['Value'])[0]
-    print('x', x)
-    x = x * 60 + 60
-    minilogue_1.cutoff(x)
-
-
 def vozuz_uart(l, data, sig):
     print(data.get('Value', None))
-    #val = int(''.join(chr(c) for c in data['Value']))
-    #val = abs(val)
-    #val = translate(val, 0, 180, 0, 127)
+    # val = int(''.join(chr(c) for c in data['Value']))
+    # val = abs(val)
+    # val = translate(val, 0, 180, 0, 127)
     # minilogue_1.cutoff(val)
 
 
@@ -113,77 +80,7 @@ def connect_to_vozuz():
     print('Running main loop')
     run_dbus_loop()
 
-
-def translate(value, leftMin, leftMax, rightMin, rightMax):
-    # Figure out how 'wide' each range is
-    leftSpan = leftMax - leftMin
-    rightSpan = rightMax - rightMin
-
-    # Convert the left range into a 0-1 range (float)
-    valueScaled = float(value - leftMin) / float(leftSpan)
-
-    # Convert the 0-1 range into a value in the right range.
-    return int(rightMin + (valueScaled * rightSpan))
-
-
-def cent_to_midi(value):
-    return translate(value, 0, 100, 0, 127)
-
-
-def particles_cb(data):
-    cut = cent_to_midi(data['x'])
-    res = cent_to_midi(data['y'])
-
-    minilogue_1.amp_decay(cut)
-    minilogue_1.eg_decay(res)
-
-
-behaviors = {
-    'particles': particles_cb,
-    'metaball': lambda data: metaball.set_data_points(data)
-}
-
 LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
-
-
-
-class Worker:
-    def __init__(self):
-        self.cv = threading.Condition()
-        self.q = []
-
-    def consume(self):
-        while True:
-            local_q = []
-            with self.cv:
-                while len(self.q) == 0:
-                    self.cv.wait()
-                local_q = [task for task in self.q]
-                self.q = []
-            for task in local_q:
-                task['cb'](*task['args'], **task['kwargs'])
-
-    def add(self, task, *args, **kwargs):
-        with self.cv:
-            self.q.append({'cb': task, 'args': args, 'kwargs': kwargs})
-            self.cv.notify_all()
-
-    def add_all(self, tasks, *args, **kwargs):
-        with self.cv:
-            self.q.extend([{
-                'cb': task,
-                'args': args,
-                'kwargs': kwargs
-            } for task in tasks])
-            self.cv.notify_all()
-
-
-
-def metaball_cb(minilogue):
-    def do_it(val):
-        minilogue.voice_mode(val)
-
-    return do_it
 
 
 def broadcast_sequencer_to_clients(client_pool):
@@ -192,24 +89,23 @@ def broadcast_sequencer_to_clients(client_pool):
 
 
 def run():
-    global minilogue_1
-    global sequencer
-    global worker
-    global metronome
-    global metaball
-
-    client_pool = ClientPool()
-
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(relativeCreated)6d %(threadName)s %(message)s')
 
+    client_pool = ClientPool()
+
     minilogue_1 = Minilogue('MIDI4x4:MIDI4x4 MIDI 3 20:2')
+    minilogue_2 = Minilogue('MIDI4x4:MIDI4x4 MIDI 4 20:3')
+
     worker = Worker()
+
     metronome = Metronome(worker)
+
     sequencer = Sequencer(notes=LCD)
 
-    metaball = Metaball(metaball_cb(minilogue_1))
+    metaball = MetaBalls(minilogue_1.voice_mode)
+
     metronome.register_cb(sequencer.beat)
 
     sequencer.register_cb({'on': broadcast_sequencer_to_clients(client_pool)})
@@ -218,6 +114,15 @@ def run():
         'on': minilogue_1.beat_on,
         'off': minilogue_1.beat_off
     })
+    sequencer.register_cb({
+        'on': minilogue_2.beat_on,
+        'off': minilogue_2.beat_off
+    })
+
+    behaviors = {
+        'particles': particles_cb(minilogue_1),
+        'metaball': lambda data: metaball.set_data_points(data)
+    }
 
     clock_t = threading.Thread(target=metronome.loop, args=(), daemon=True)
     ws_t = threading.Thread(
@@ -231,6 +136,7 @@ def run():
     worker_t.start()
 
     connect_to_vozuz()
+
     try:
         ws_t.join()
         clock_t.join()
