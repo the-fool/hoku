@@ -19,14 +19,6 @@ MBIT_ADDR = 'DE:ED:5C:B4:E3:73'
 DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
 
-def connect_mbit(m):
-    try:
-        m.connect()
-        return True
-    except:
-        return False
-
-
 def run_dbus_loop():
     global loop
     DBusGMainLoop(set_as_default=True)
