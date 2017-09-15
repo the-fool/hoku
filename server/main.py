@@ -2,8 +2,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 
 from .instruments.minilogue import Minilogue
-from .ws_server import run_ws_server
-from .http_server import run_http_server
+from .web_servers import run_ws_server, run_http_server
 from .microbit import MyMicrobit
 from .client_pool import ClientPool
 from .modules import Sequencer
@@ -16,15 +15,8 @@ import threading
 import sys
 import logging
 
-
-def find_mbit(name):
-    adapter_addr = '5C:F3:70:81:F3:66'
-    if name == 'vozuz':
-        device_addr = 'DE:ED:5C:B4:E3:73'
-    try:
-        return MyMicrobit(device_addr=device_addr, adapter_addr=adapter_addr)
-    except:
-        return None
+MBIT_ADDR = 'DE:ED:5C:B4:E3:73'
+DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
 
 def connect_mbit(m):
@@ -35,19 +27,11 @@ def connect_mbit(m):
         return False
 
 
-def setup_dbus_loop():
-    DBusGMainLoop(set_as_default=True)
-
-
 def run_dbus_loop():
     global loop
+    DBusGMainLoop(set_as_default=True)
     loop = GLib.MainLoop()
     loop.run()
-
-
-def quit_dbus_loop():
-    global loop
-    loop.quit()
 
 
 def vozuz_uart(l, data, sig):
@@ -57,28 +41,6 @@ def vozuz_uart(l, data, sig):
     # val = translate(val, 0, 180, 0, 127)
     # minilogue_1.cutoff(val)
 
-
-# BEGIN MAIN
-def connect_to_vozuz():
-    print('Finding VOZUZ')
-    vozuz = find_mbit(name='vozuz')
-    if vozuz is None:
-        print('Failed to find VOZUZ')
-        exit(1)
-
-    print('Connecting to VOZUZ')
-    if not connect_mbit(vozuz):
-        print('Failed to connect to VOZUZ')
-        exit(1)
-
-    print('Subscribing to uart')
-    vozuz.subscribe_uart(vozuz_uart)
-
-    print('Setting up dbus loop')
-    setup_dbus_loop()
-
-    print('Running main loop')
-    run_dbus_loop()
 
 LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
 
@@ -135,8 +97,23 @@ def run():
     clock_t.start()
     worker_t.start()
 
-    connect_to_vozuz()
+    # Do the microbit things:
+    try:
+        mbit = MyMicrobit(device_addr=MBIT_ADDR, adapter_addr=DONGLE_ADDR)
+    except:
+        logging.debug('Failed to find mbit')
+        sys.exit(1)
+    if not mbit.connect():
+        logging.debug('Failed to connect to mbit')
+        sys.exit(1)
 
+    try:
+        mbit.subscribe_uart(vozuz_uart)
+    except:
+        logging.debug('Failed to subscribe to mbit UART')
+        sys.exit(1)
+
+    run_dbus_loop()
     try:
         ws_t.join()
         clock_t.join()
