@@ -15,7 +15,8 @@ import threading
 import sys
 import logging
 
-MBIT_ADDR = 'DE:ED:5C:B4:E3:73'
+MBIT_VOZUZ = 'DE:ED:5C:B4:E3:73'
+MBIT_GUPAZ = 'D5:38:B0:2D:BF:B6'
 DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
 
@@ -40,6 +41,19 @@ LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
 def broadcast_sequencer_to_clients(client_pool):
     return lambda note, step: client_pool.broadcast(
         json.dumps({'note': note, 'step': step}))
+
+
+def microbit_init(address):
+    # Do the microbit things:
+    try:
+        mbit = MyMicrobit(device_addr=address, adapter_addr=DONGLE_ADDR)
+    except:
+        logging.debug('Failed to find mbit {}'.format(address))
+        return None
+    if not mbit.connect():
+        logging.debug('Failed to connect to {}'.format(address))
+        return None
+    return mbit
 
 
 def run():
@@ -90,17 +104,12 @@ def run():
     worker_t.start()
 
     # Do the microbit things:
-    try:
-        mbit = MyMicrobit(device_addr=MBIT_ADDR, adapter_addr=DONGLE_ADDR)
-    except:
-        logging.debug('Failed to find mbit')
+    vozuz = microbit_init(MBIT_VOZUZ)
+    gupaz = microbit_init(MBIT_GUPAZ)
+    if vozuz is None or gupaz is None:
         sys.exit(1)
-    if not mbit.connect():
-        logging.debug('Failed to connect to mbit')
-        sys.exit(1)
-
     try:
-        mbit.subscribe_uart(vozuz_uart)
+        vozuz.subscribe_uart(vozuz_uart)
     except:
         logging.debug('Failed to subscribe to mbit UART')
         sys.exit(1)
