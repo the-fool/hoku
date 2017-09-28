@@ -62,7 +62,7 @@ function generateConnections(paths) {
     }
   }
   if (ws.readyState > 0)
-  throttledMsg(connections.children);
+    throttledMsg(connections.children);
 }
 
 
@@ -106,10 +106,10 @@ function metaball(ball1, ball2, v, handle_len_rate, maxDistance) {
   var u1, u2;
 
   if (radius1 == 0 || radius2 == 0)
-    return;
+    return undefined;
 
   if (d > maxDistance || d <= Math.abs(radius1 - radius2)) {
-    return;
+    return undefined;
   } else if (d < radius1 + radius2) { // case circles are overlapping
     u1 = Math.acos((radius1 * radius1 + d * d - radius2 * radius2) /
                    (2 * radius1 * d));
@@ -147,7 +147,7 @@ function metaball(ball1, ball2, v, handle_len_rate, maxDistance) {
     closed: true,
     fillColor: ball2.fillColor,
     ball: ball2.index,
-    intensity: d2,
+    intensity: d2
   });
 
   ball1.fillColor = ball2.fillColor;
