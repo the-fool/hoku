@@ -1,0 +1,11 @@
+.note-bank.red {
+  rect {
+    fill: red;
+  }
+}
+
+.note-bank.blue {
+  rect {
+    fill: blue;
+  }
+}
