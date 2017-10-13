@@ -123,6 +123,14 @@ def run():
         sys.exit()
 
 
+#   -- End main script --
+#
+#
+# Function and sub-routine defs
+# They are used in the imperative configuration up above
+#
+
+
 def run_dbus_loop():
     """
     Start the dbus loop
