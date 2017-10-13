@@ -12,9 +12,6 @@ class Metronome:
         self.cbs = cbs
         self.worker_queue = worker_queue
 
-    def register_cb(self, cb):
-        self.cbs.append(cb)
-
     def loop(self):
         sleep_offset = 0
         while True:
