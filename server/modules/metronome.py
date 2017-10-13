@@ -1,4 +1,7 @@
 import time
+from ctypes import CFUNCTYPE, c_int
+
+CB_CTYPE = CFUNCTYPE(c_int, c_int)
 
 
 class Metronome:

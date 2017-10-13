@@ -4,8 +4,7 @@ from gi.repository import GLib
 from .instruments.minilogue import Minilogue
 from .web_servers import run_ws_server, run_http_server
 from .microbit import MyMicrobit
-from .modules import Sequencer
-from .modules import Metronome
+from .modules import Sequencer, Metronome, SEQUENCER_CB_CTYPE, OnStepCbs
 from .worker import Worker
 from .web_clients import MetaBalls, particles_cb
 
@@ -18,6 +17,9 @@ MBIT_VOZUZ = 'DE:ED:5C:B4:E3:73'
 MBIT_GUPAZ = 'D5:38:B0:2D:BF:B6'
 DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
+
+def noop_2ary(a, b):
+    return 0
 
 
 def run():
@@ -35,7 +37,10 @@ def run():
 
     manager = multiprocessing.Manager()
 
-    sequencer_cb_pool = manager.list([])
+    seq_cb_pool = multiprocessing.Array(OnStepCbs, 64)
+    seq_cb_pool_length_i = 0
+    seq_cb_pool_length = multiprocessing.Value('i', seq_cb_pool_length_i)
+
     ws_client_pool = manager.list([])
     metronome_cb_pool = manager.list([])
     sequencer_notes = multiprocessing.Array('i', LCD)
@@ -47,24 +52,32 @@ def run():
 
     worker = Worker(worker_queue)
     metronome = Metronome(cbs=metronome_cb_pool, worker_queue=worker_queue)
-    sequencer = Sequencer(cbs=sequencer_cb_pool, notes=sequencer_notes)
+    sequencer = Sequencer(
+        cbs=seq_cb_pool, cbs_length=seq_cb_pool_length, notes=sequencer_notes)
     metaball = MetaBalls(instrument_cb=minilogue_1.voice_mode)
 
     metronome_cb_pool.append(sequencer.beat)
 
-    sequencer_cb_pool.append({
-        'on':
-        broadcast_sequencer_to_clients(ws_client_pool)
-    })
-    sequencer_cb_pool.append({'on': metaball.beat})
-    sequencer_cb_pool.append({
-        'on': minilogue_1.beat_on,
-        'off': minilogue_1.beat_off
-    })
-    sequencer_cb_pool.append({
-        'on': minilogue_2.beat_on,
-        'off': minilogue_2.beat_off
-    })
+    #
+    # Add the sequencer cbs
+    #
+
+    sequencer_cb_tuples = [
+        (broadcast_sequencer_to_clients(ws_client_pool), noop_2ary),
+        (metaball.beat, noop_2ary),
+        (minilogue_1.beat_on, minilogue_1.beat_off),
+        (minilogue_2.beat_on, minilogue_2.beat_off)
+    ]
+
+    for i, cb_tuple in enumerate(sequencer_cb_tuples):
+        seq_cb_pool[i].on = SEQUENCER_CB_CTYPE(cb_tuple[0])
+        seq_cb_pool[i].off = SEQUENCER_CB_CTYPE(cb_tuple[1])
+        seq_cb_pool_length_i += 1
+    seq_cb_pool_length.value = seq_cb_pool_length_i
+
+    #
+    # WebSocket server behaviors
+    #
 
     behaviors = {
         'particles': particles_cb(minilogue_1),
