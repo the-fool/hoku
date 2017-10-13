@@ -12,6 +12,7 @@ from .web_clients import MetaBalls, particles_cb
 
 import json
 import threading
+import multiprocessing
 import sys
 import logging
 
@@ -39,8 +40,19 @@ LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
 
 
 def broadcast_sequencer_to_clients(client_pool):
-    return lambda note, step: client_pool.broadcast(
-        json.dumps({'note': note, 'step': step}))
+    """
+    Takes a list of clients
+    Returns a broadcaster function
+    """
+
+    def broadcast(note, step):
+        clients = list(client_pool)
+        msg = json.dumps({'note': note, 'step': step})
+        for c in clients:
+            # client items are ws objs, with a .sendMessage() method
+            c.sendMessage(msg)
+
+    return broadcast
 
 
 def microbit_init(address):
@@ -61,7 +73,7 @@ def run():
         level=logging.DEBUG,
         format='%(relativeCreated)6d %(threadName)s %(message)s')
 
-    client_pool = ClientPool()
+    ws_client_pool = multiprocessing.Manager.list([])
 
     minilogue_1 = Minilogue('MIDI4x4:MIDI4x4 MIDI 3 20:2')
     minilogue_2 = Minilogue('MIDI4x4:MIDI4x4 MIDI 4 20:3')
@@ -76,7 +88,9 @@ def run():
 
     metronome.register_cb(sequencer.beat)
 
-    sequencer.register_cb({'on': broadcast_sequencer_to_clients(client_pool)})
+    sequencer.register_cb({
+        'on': broadcast_sequencer_to_clients(ws_client_pool)
+    })
     sequencer.register_cb({'on': metaball.beat})
     sequencer.register_cb({
         'on': minilogue_1.beat_on,
@@ -92,16 +106,18 @@ def run():
         'metaball': lambda data: metaball.set_data_points(data)
     }
 
-    clock_t = threading.Thread(target=metronome.loop, args=(), daemon=True)
-    ws_t = threading.Thread(
-        target=run_ws_server, args=(client_pool, behaviors), daemon=True)
-    http_t = threading.Thread(target=run_http_server, args=(), daemon=True)
     worker_t = threading.Thread(target=worker.consume, args=(), daemon=True)
 
-    ws_t.start()
-    http_t.start()
-    clock_t.start()
     worker_t.start()
+
+    ws_p = multiprocessing.Process(
+        target=run_ws_server, args=(ws_client_pool, behaviors))
+    clock_p = multiprocessing.Process(target=metronome.loop, args=())
+    http_p = multiprocessing.Process(target=run_http_server, args=())
+
+    ws_p.start()
+    clock_p.start()
+    http_p.start()
 
     # Do the microbit things:
     vozuz = microbit_init(MBIT_VOZUZ)
@@ -116,10 +132,10 @@ def run():
 
     run_dbus_loop()
     try:
-        ws_t.join()
-        clock_t.join()
-        http_t.join()
+        ws_p.join()
+        clock_p.join()
         worker_t.join()
+        http_p.join()
     except (KeyboardInterrupt, ):
         for i in range(127):
             minilogue_1.note_off(i)
