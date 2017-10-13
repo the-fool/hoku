@@ -4,7 +4,6 @@ from gi.repository import GLib
 from .instruments.minilogue import Minilogue
 from .web_servers import run_ws_server, run_http_server
 from .microbit import MyMicrobit
-from .client_pool import ClientPool
 from .modules import Sequencer
 from .modules import Metronome
 from .worker import Worker
@@ -71,7 +70,7 @@ def microbit_init(address):
 def run():
     logging.basicConfig(
         level=logging.DEBUG,
-        format='%(relativeCreated)6d %(threadName)s %(message)s')
+        format='%(relativeCreated)6d %(processName)s %(message)s')
 
     ws_client_pool = multiprocessing.Manager.list([])
 
