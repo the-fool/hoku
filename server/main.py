@@ -10,7 +10,6 @@ from .worker import Worker
 from .web_clients import MetaBalls, particles_cb
 
 import json
-import threading
 import multiprocessing
 import sys
 import logging
@@ -75,7 +74,11 @@ def run():
     minilogue_1 = Minilogue('MIDI4x4:MIDI4x4 MIDI 3 20:2')
     minilogue_2 = Minilogue('MIDI4x4:MIDI4x4 MIDI 4 20:3')
 
+    # set up all the shared memory stuff
+    # manager things are not performance critical
+
     manager = multiprocessing.Manager()
+
     ws_client_pool = manager.list([])
 
     metronome_cb_pool = manager.list([])
@@ -83,10 +86,12 @@ def run():
     # sequencer cbs take (note: int, step: int)
     sequencer_cb_pool = manager.list([])
     sequencer_notes = multiprocessing.Array('i', LCD)
+    worker_queue = multiprocessing.Queue()
 
-    worker = Worker()
+    # build our modules, using the shared memory things
+    worker = Worker(worker_queue)
 
-    metronome = Metronome(metronome_cb_pool, worker)
+    metronome = Metronome(metronome_cb_pool, worker_queue)
 
     sequencer = Sequencer(sequencer_cb_pool, notes=sequencer_notes)
 
@@ -95,7 +100,8 @@ def run():
     metronome_cb_pool.append(sequencer.beat)
 
     sequencer_cb_pool.append({
-        'on': broadcast_sequencer_to_clients(ws_client_pool)
+        'on':
+        broadcast_sequencer_to_clients(ws_client_pool)
     })
     sequencer_cb_pool.append({'on': metaball.beat})
     sequencer_cb_pool.append({
@@ -112,10 +118,7 @@ def run():
         'metaball': lambda data: metaball.set_data_points(data)
     }
 
-    worker_t = threading.Thread(target=worker.consume, args=(), daemon=True)
-
-    worker_t.start()
-
+    worker_p = multiprocessing.process(target=worker.consume, args=())
     ws_p = multiprocessing.Process(
         target=run_ws_server, args=(ws_client_pool, behaviors))
     clock_p = multiprocessing.Process(target=metronome.loop, args=())
@@ -124,6 +127,7 @@ def run():
     ws_p.start()
     clock_p.start()
     http_p.start()
+    worker_p.start()
 
     # Do the microbit things:
     vozuz = microbit_init(MBIT_VOZUZ)
@@ -140,7 +144,7 @@ def run():
     try:
         ws_p.join()
         clock_p.join()
-        worker_t.join()
+        worker_p.join()
         http_p.join()
     except (KeyboardInterrupt, ):
         for i in range(127):
