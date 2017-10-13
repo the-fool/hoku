@@ -19,52 +19,6 @@ MBIT_GUPAZ = 'D5:38:B0:2D:BF:B6'
 DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
 
-def run_dbus_loop():
-    global loop
-    DBusGMainLoop(set_as_default=True)
-    loop = GLib.MainLoop()
-    loop.run()
-
-
-def vozuz_uart(l, data, sig):
-    print(data.get('Value', None))
-    # val = int(''.join(chr(c) for c in data['Value']))
-    # val = abs(val)
-    # val = translate(val, 0, 180, 0, 127)
-    # minilogue_1.cutoff(val)
-
-
-LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
-
-
-def broadcast_sequencer_to_clients(client_pool):
-    """
-    Takes a list of clients
-    Returns a broadcaster function
-    """
-
-    def broadcast(note, step):
-        clients = list(client_pool)
-        msg = json.dumps({'note': note, 'step': step})
-        for c in clients:
-            # client items are ws objs, with a .sendMessage() method
-            c.sendMessage(msg)
-
-    return broadcast
-
-
-def microbit_init(address):
-    # Do the microbit things:
-    try:
-        mbit = MyMicrobit(device_addr=address, adapter_addr=DONGLE_ADDR)
-    except:
-        logging.debug('Failed to find mbit {}'.format(address))
-        return None
-    if not mbit.connect():
-        logging.debug('Failed to connect to {}'.format(address))
-        return None
-    return mbit
-
 
 def run():
     logging.basicConfig(
@@ -167,3 +121,58 @@ def run():
         for i in range(127):
             minilogue_1.note_off(i)
         sys.exit()
+
+
+def run_dbus_loop():
+    """
+    Start the dbus loop
+    """
+    global loop
+    DBusGMainLoop(set_as_default=True)
+    loop = GLib.MainLoop()
+    loop.run()
+
+
+def vozuz_uart(l, data, sig):
+    """
+    Callback routine for the vozuz mbit
+    Vozuz is the colored rotating thing
+    """
+    print(data.get('Value', None))
+    # val = int(''.join(chr(c) for c in data['Value']))
+    # val = abs(val)
+    # val = translate(val, 0, 180, 0, 127)
+    # minilogue_1.cutoff(val)
+
+
+# Get Innocuous!
+LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
+
+
+def broadcast_sequencer_to_clients(client_pool):
+    """
+    Takes a list of clients
+    Returns a broadcaster function
+    """
+
+    def broadcast(note, step):
+        clients = list(client_pool)
+        msg = json.dumps({'note': note, 'step': step})
+        for c in clients:
+            # client items are ws objs, with a .sendMessage() method
+            c.sendMessage(msg)
+
+    return broadcast
+
+
+def microbit_init(address):
+    # Do the microbit things:
+    try:
+        mbit = MyMicrobit(device_addr=address, adapter_addr=DONGLE_ADDR)
+    except:
+        logging.debug('Failed to find mbit {}'.format(address))
+        return None
+    if not mbit.connect():
+        logging.debug('Failed to connect to {}'.format(address))
+        return None
+    return mbit
