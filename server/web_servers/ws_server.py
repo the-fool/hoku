@@ -1,4 +1,3 @@
-import threading
 import json
 import logging
 
@@ -15,7 +14,7 @@ def wsHandler(client_pool, behaviors):
         def handleConnected(self):
             logging.debug('{} connected'.format(self.request.path))
             self.parse_url()
-            client_pool.add(self)
+            client_pool.append(self)
 
         def handleClose(self):
             client_pool.remove(self)
@@ -29,7 +28,10 @@ def wsHandler(client_pool, behaviors):
 
 def run_ws_server(client_pool, behaviors, port=4444):
     server = SimpleWebSocketServer(
-        '0.0.0.0', port, wsHandler(client_pool, behaviors), selectInterval=0.005)
+        '0.0.0.0',
+        port,
+        wsHandler(client_pool, behaviors),
+        selectInterval=0.005)
     logging.debug('Server starting...')
     server.serveforever()
     logging.debug('Server exited unexpectedly ...')
