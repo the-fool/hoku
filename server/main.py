@@ -72,30 +72,37 @@ def run():
         level=logging.DEBUG,
         format='%(relativeCreated)6d %(processName)s %(message)s')
 
-    ws_client_pool = multiprocessing.Manager.list([])
-
     minilogue_1 = Minilogue('MIDI4x4:MIDI4x4 MIDI 3 20:2')
     minilogue_2 = Minilogue('MIDI4x4:MIDI4x4 MIDI 4 20:3')
 
+    manager = multiprocessing.Manager()
+    ws_client_pool = manager.list([])
+
+    metronome_cb_pool = manager.list([])
+
+    # sequencer cbs take (note: int, step: int)
+    sequencer_cb_pool = manager.list([])
+    sequencer_notes = multiprocessing.Array('i', LCD)
+
     worker = Worker()
 
-    metronome = Metronome(worker)
+    metronome = Metronome(metronome_cb_pool, worker)
 
-    sequencer = Sequencer(notes=LCD)
+    sequencer = Sequencer(sequencer_cb_pool, notes=sequencer_notes)
 
     metaball = MetaBalls(minilogue_1.voice_mode)
 
-    metronome.register_cb(sequencer.beat)
+    metronome_cb_pool.append(sequencer.beat)
 
-    sequencer.register_cb({
+    sequencer_cb_pool.append({
         'on': broadcast_sequencer_to_clients(ws_client_pool)
     })
-    sequencer.register_cb({'on': metaball.beat})
-    sequencer.register_cb({
+    sequencer_cb_pool.append({'on': metaball.beat})
+    sequencer_cb_pool.append({
         'on': minilogue_1.beat_on,
         'off': minilogue_1.beat_off
     })
-    sequencer.register_cb({
+    sequencer_cb_pool.append({
         'on': minilogue_2.beat_on,
         'off': minilogue_2.beat_off
     })
