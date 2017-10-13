@@ -74,6 +74,7 @@ view model =
         ]
 
 
+ticker : Int -> Svg.Svg Msg
 ticker step =
     let
         center =
@@ -189,6 +190,7 @@ arcStrokeWidth =
     6
 
 
+radialBars : Float -> Float -> Svg.Svg Msg
 radialBars center length =
     let
         toBar i =
