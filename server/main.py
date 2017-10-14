@@ -10,7 +10,7 @@ from .worker import Worker
 from .web_clients import MetaBalls, particles_cb, PolySequencer
 
 import json
-import multiprocessing
+import multiprocessing as mp
 import sys
 import logging
 
@@ -42,31 +42,39 @@ def run():
     # -- manager things are not performance critical
     #
 
-    manager = multiprocessing.Manager()
-
-    seq_cb_pool = multiprocessing.Array(OnStepCbs, 64)
+    seq_cb_pool = mp.Array(OnStepCbs, 64)
     seq_cb_pool_length_i = 0
-    seq_cb_pool_length = multiprocessing.Value('i', seq_cb_pool_length_i)
+    seq_cb_pool_length = mp.Value('i', seq_cb_pool_length_i)
 
-    met_cb_pool = multiprocessing.Array(METRONOME_CB_CTYPE, 64)
+    met_cb_pool = mp.Array(METRONOME_CB_CTYPE, 64)
     met_cb_pool_length_i = 0
-    met_cb_pool_length = multiprocessing.Value('i', met_cb_pool_length_i)
+    met_cb_pool_length = mp.Value('i', met_cb_pool_length_i)
 
-    ws_client_pool = manager.list([])
-    sequencer_notes = multiprocessing.Array('i', LCD)
-    worker_queue = manager.Queue()
+    sequencer_notes = mp.Array('i', LCD)
+
+    #
+    # Metronome write pipes
+    #
+
+    ws_server_pipe_w, ws_server_pipe_r = mp.Pipe()
+    mono_sequencer_pipe_w, mono_sequencer_pipe_r = mp.Pipe()
+    poly_sequencer_pipe_w, poly_sequencer_pipe_r = mp.Pipe()
+
+    metronome_write_pipes = [
+        ws_server_pipe_w,
+        mono_sequencer_pipe_w,
+        poly_sequencer_pipe_w
+    ] # yapf: disable
 
     #
     # Build our modules, using the shared memory things
     #
 
-    worker = Worker(worker_queue)
-
     # yapf: disable
     metronome = Metronome(
+        pipes=metronome_write_pipes,
         cbs=met_cb_pool,
-        cbs_length=met_cb_pool_length,
-        worker_queue=worker_queue)
+        cbs_length=met_cb_pool_length)
     sequencer = Sequencer(
         cbs=seq_cb_pool,
         cbs_length=seq_cb_pool_length,
@@ -84,10 +92,7 @@ def run():
     # Add the metronome cbs
     #
 
-    metronome_cbs = [
-        sequencer.beat,
-        poly_sequencer.beat
-    ]
+    metronome_cbs = [sequencer.beat, poly_sequencer.beat]
     for i, cb in enumerate(metronome_cbs):
         met_cb_pool[i] = METRONOME_CB_CTYPE(cb)
         met_cb_pool_length_i += 1
@@ -98,8 +103,7 @@ def run():
     #
 
     # yapf: disable
-    sequencer_cb_tuples = [(bcast_seq_to_clients(ws_client_pool), noop_2ary),
-                           (metaball.beat, noop_2ary),
+    sequencer_cb_tuples = [(metaball.beat, noop_2ary),
                            (minilogue_1.beat_on, minilogue_1.beat_off),
                            (minilogue_2.beat_on, minilogue_2.beat_off)]
     # yapf: enable
@@ -124,16 +128,13 @@ def run():
     # Create the processes
     #
 
-    worker_p = multiprocessing.Process(target=worker.consume, args=())
-    ws_p = multiprocessing.Process(
-        target=run_ws_server, args=(ws_client_pool, behaviors))
-    clock_p = multiprocessing.Process(target=metronome.loop, args=())
-    http_p = multiprocessing.Process(target=run_http_server, args=())
+    ws_p = mp.Process(target=run_ws_server, args=(ws_server_pipe_r, behaviors))
+    metronome_p = mp.Process(target=metronome.loop, args=())
+    http_p = mp.Process(target=run_http_server, args=())
 
     ws_p.start()
-    clock_p.start()
+    metronome_p.start()
     http_p.start()
-    worker_p.start()
 
     #
     # Do the microbit things:
@@ -164,8 +165,7 @@ def run():
 
     try:
         ws_p.join()
-        clock_p.join()
-        worker_p.join()
+        metronome_p.join()
         http_p.join()
     except (KeyboardInterrupt, ):
         for i in range(127):
@@ -206,22 +206,6 @@ def vozuz_uart(l, data, sig):
 
 # Get Innocuous!
 LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
-
-
-def bcast_seq_to_clients(client_pool):
-    """
-    Takes a list of clients
-    Returns a broadcaster function
-    """
-
-    def broadcast(note, step):
-        clients = list(client_pool)
-        msg = json.dumps({'note': note, 'step': step})
-        for c in clients:
-            # client items are ws objs, with a .sendMessage() method
-            c.sendMessage(msg)
-
-    return broadcast
 
 
 def microbit_init(address):

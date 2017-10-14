@@ -7,7 +7,8 @@ class PolySequencer:
         self.cb = instrument_cb
 
     def beat(self, ts):
-        print(ts)
+        pass
+        # print(ts)
         # do instrument cb
 
     def set_notes(self, new_notes):
