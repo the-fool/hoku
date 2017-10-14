@@ -46,10 +46,6 @@ def run():
     seq_cb_pool_length_i = 0
     seq_cb_pool_length = mp.Value('i', seq_cb_pool_length_i)
 
-    met_cb_pool = mp.Array(METRONOME_CB_CTYPE, 64)
-    met_cb_pool_length_i = 0
-    met_cb_pool_length = mp.Value('i', met_cb_pool_length_i)
-
     sequencer_notes = mp.Array('i', LCD)
 
     #
@@ -64,17 +60,14 @@ def run():
         ws_server_pipe_w,
         mono_sequencer_pipe_w,
         poly_sequencer_pipe_w
-    ] # yapf: disable
+    ]  # yapf: disable
 
     #
     # Build our modules, using the shared memory things
     #
 
     # yapf: disable
-    metronome = Metronome(
-        pipes=metronome_write_pipes,
-        cbs=met_cb_pool,
-        cbs_length=met_cb_pool_length)
+    metronome = Metronome(pipes=metronome_write_pipes)
 
     mono_sequencer = Sequencer(
         cbs=seq_cb_pool,
@@ -88,17 +81,8 @@ def run():
     #
 
     metaball = MetaBalls(instrument_cb=minilogue_1.voice_mode)
-    poly_sequencer = PolySequencer(nord.note_on)
-
-    #
-    # Add the metronome cbs
-    #
-
-    metronome_cbs = [poly_sequencer.beat]
-    for i, cb in enumerate(metronome_cbs):
-        met_cb_pool[i] = METRONOME_CB_CTYPE(cb)
-        met_cb_pool_length_i += 1
-    met_cb_pool_length.value = met_cb_pool_length_i
+    poly_sequencer = PolySequencer(
+        clock_pipe=poly_sequencer_pipe_r, instrument_cb=nord.note_on)
 
     #
     # Add the sequencer cbs
@@ -130,15 +114,14 @@ def run():
     # Create the processes
     #
 
-    ws_p = mp.Process(target=run_ws_server, args=(ws_server_pipe_r, behaviors))
-    metronome_p = mp.Process(target=metronome.loop, args=())
-    http_p = mp.Process(target=run_http_server, args=())
-    mono_sequencer_p = mp.Process(target=mono_sequencer.start)
+    processes = [(run_ws_server, (ws_server_pipe_r, behaviors)),
+                 (metronome.loop, ()), (run_http_server, ()),
+                 (mono_sequencer.start, ()), (poly_sequencer.start, ())]
 
-    ws_p.start()
-    metronome_p.start()
-    http_p.start()
-    mono_sequencer_p.start()
+    process_objs = [mp.Process(target=p[0], args=p[1]) for p in processes]
+
+    for p in process_objs:
+        p.start()
 
     #
     # Do the microbit things:
@@ -168,9 +151,8 @@ def run():
     #
 
     try:
-        ws_p.join()
-        metronome_p.join()
-        http_p.join()
+        for p in process_objs:
+            p.join()
     except (KeyboardInterrupt, ):
         for i in range(127):
             minilogue_1.note_off(i)

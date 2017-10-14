@@ -6,14 +6,13 @@ CB_CTYPE = CFUNCTYPE(None, c_int)
 
 
 class Metronome:
-    def __init__(self, pipes, cbs, cbs_length, bpm=110, steps=4):
+    def __init__(self, pipes, bpm=110, steps=4):
         self.ts = 0  # unique timestamp -- just an incrementing int!
         self.bpm = bpm
         self.pipes = pipes
         self.steps = steps
-        self.cbs_length = cbs_length
-        self.cbs = cbs
-        logging.debug("Metronome starting: BPM {}, STEPS {}".format(bpm, steps))
+        logging.debug(
+            "Metronome starting: BPM {}, STEPS {}".format(bpm, steps))
 
     def loop(self):
         sleep_offset = 0
@@ -21,9 +20,6 @@ class Metronome:
             sleep_time = max(0, (60 / self.bpm / self.steps - sleep_offset))
             time.sleep(sleep_time)
             t = time.time()
-            cbs = self.cbs[:self.cbs_length.value]
-            for cb in cbs:
-                cb(self.ts)
             for pipe in self.pipes:
                 pipe.send(self.ts)
             self.ts = self.ts + 1

@@ -1,5 +1,7 @@
 from ctypes import CFUNCTYPE, c_int, Structure
 
+import logging
+
 CB_CTYPE = CFUNCTYPE(None, c_int, c_int)
 
 
@@ -17,6 +19,7 @@ class Sequencer:
         self.cbs_length = cbs_length
 
     def start(self):
+        logging.debug('Mono sequencer starting')
         while True:
             ts = self.clock_pipe.recv()
             self.beat(ts)
