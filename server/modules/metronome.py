@@ -1,12 +1,9 @@
 import time
 import logging
-from ctypes import CFUNCTYPE, c_int
-
-CB_CTYPE = CFUNCTYPE(None, c_int)
 
 
 class Metronome:
-    def __init__(self, pipes, bpm=110, steps=4):
+    def __init__(self, pipes, bpm=40, steps=4):
         self.ts = 0  # unique timestamp -- just an incrementing int!
         self.bpm = bpm
         self.pipes = pipes

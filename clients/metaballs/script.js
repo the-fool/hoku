@@ -17,7 +17,7 @@ var ballPositions = [
 ];
 var len = ballPositions.length;
 ws.onmessage = function(e) {
-  ballIndex = JSON.parse(e.data).step % len;
+  ballIndex = JSON.parse(e.data).ts % len;
   blink(ballIndex);
 };
 
