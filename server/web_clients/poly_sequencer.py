@@ -6,8 +6,8 @@ class PolySequencer:
         self.notes = multiprocessing.Manager().list(notes)
         self.cb = instrument_cb
 
-    def beat(self, note, step):
-        print(note, step)
+    def beat(self, ts):
+        print(ts)
         # do instrument cb
 
     def set_notes(self, new_notes):

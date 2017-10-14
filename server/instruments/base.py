@@ -1,10 +1,14 @@
 import mido
 
+import logging
+
 
 class BaseInstrument:
     def __init__(self, output_name, channel=0):
         self.outport = mido.open_output(output_name)
         self.channel = channel
+        logging.debug(
+            "Instrument: {} on channel {}".format(output_name, channel))
 
     @staticmethod
     def midify(x):

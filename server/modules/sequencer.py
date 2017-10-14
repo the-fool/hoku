@@ -1,6 +1,6 @@
 from ctypes import CFUNCTYPE, c_int, Structure
 
-CB_CTYPE = CFUNCTYPE(c_int, c_int, c_int)
+CB_CTYPE = CFUNCTYPE(None, c_int, c_int)
 
 
 class OnStepCbs(Structure):
@@ -28,12 +28,12 @@ class Sequencer:
         # we either have a note, or a rest -- do note off!
         if note is not 0:
             for cb in cbs:
-                cb.off(note=self.off_note, step=self.step)
+                cb.off(self.off_note, self.step)
 
         # we have a note -- play it!
         if note > 0:
             self.off_note = note
             for cb in cbs:
-                cb.on(note=note, step=self.step)
+                cb.on(note, self.step)
 
         self.step = (self.step + 1) % len(self.notes)

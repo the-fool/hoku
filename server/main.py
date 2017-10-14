@@ -1,10 +1,11 @@
 from dbus.mainloop.glib import DBusGMainLoop
-from gi.repository import GLib
+from gi.repository import GLib as GObject
 
 from .instruments import Minilogue, NordElectro2
 from .web_servers import run_ws_server, run_http_server
 from .microbit import MyMicrobit
-from .modules import Sequencer, Metronome, SEQUENCER_CB_CTYPE, OnStepCbs
+from .modules import Sequencer, Metronome,\
+    SEQUENCER_CB_CTYPE, OnStepCbs, METRONOME_CB_CTYPE
 from .worker import Worker
 from .web_clients import MetaBalls, particles_cb, PolySequencer
 
@@ -17,9 +18,14 @@ MBIT_VOZUZ = 'DE:ED:5C:B4:E3:73'
 MBIT_GUPAZ = 'D5:38:B0:2D:BF:B6'
 DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
+MIDI_OUTPUTS = [
+    'MIDI4x4:MIDI4x4 MIDI 1 20:0', 'MIDI4x4:MIDI4x4 MIDI 2 20:1',
+    'MIDI4x4:MIDI4x4 MIDI 3 20:2', 'MIDI4x4:MIDI4x4 MIDI 4 20:3'
+]
+
 
 def noop_2ary(a, b):
-    return 0
+    pass
 
 
 def run():
@@ -27,9 +33,9 @@ def run():
         level=logging.DEBUG,
         format='%(relativeCreated)6d %(processName)s %(message)s')
 
-    minilogue_1 = Minilogue('MIDI4x4:MIDI4x4 MIDI 3 20:2')
-    minilogue_2 = Minilogue('MIDI4x4:MIDI4x4 MIDI 4 20:3')
-    nord = NordElectro2('MIDI4x4:MIDI4x4 MIDI 2 20:1')
+    minilogue_1 = Minilogue(MIDI_OUTPUTS[2])
+    minilogue_2 = Minilogue(MIDI_OUTPUTS[1])
+    nord = NordElectro2(MIDI_OUTPUTS[0])
 
     #
     # set up all the shared memory stuff
@@ -42,19 +48,30 @@ def run():
     seq_cb_pool_length_i = 0
     seq_cb_pool_length = multiprocessing.Value('i', seq_cb_pool_length_i)
 
+    met_cb_pool = multiprocessing.Array(METRONOME_CB_CTYPE, 64)
+    met_cb_pool_length_i = 0
+    met_cb_pool_length = multiprocessing.Value('i', met_cb_pool_length_i)
+
     ws_client_pool = manager.list([])
-    metronome_cb_pool = manager.list([])
     sequencer_notes = multiprocessing.Array('i', LCD)
-    worker_queue = multiprocessing.Queue()
+    worker_queue = manager.Queue()
 
     #
     # Build our modules, using the shared memory things
     #
 
     worker = Worker(worker_queue)
-    metronome = Metronome(cbs=metronome_cb_pool, worker_queue=worker_queue)
+
+    # yapf: disable
+    metronome = Metronome(
+        cbs=met_cb_pool,
+        cbs_length=met_cb_pool_length,
+        worker_queue=worker_queue)
     sequencer = Sequencer(
-        cbs=seq_cb_pool, cbs_length=seq_cb_pool_length, notes=sequencer_notes)
+        cbs=seq_cb_pool,
+        cbs_length=seq_cb_pool_length,
+        notes=sequencer_notes)
+    # yapf: enable
 
     #
     # Build our web client handlers
@@ -67,8 +84,14 @@ def run():
     # Add the metronome cbs
     #
 
-    metronome_cb_pool.append(sequencer.beat)
-    metronome_cb_pool.append(poly_sequencer.beat)
+    metronome_cbs = [
+        sequencer.beat,
+        poly_sequencer.beat
+    ]
+    for i, cb in enumerate(metronome_cbs):
+        met_cb_pool[i] = METRONOME_CB_CTYPE(cb)
+        met_cb_pool_length_i += 1
+    met_cb_pool_length.value = met_cb_pool_length_i
 
     #
     # Add the sequencer cbs
@@ -119,19 +142,20 @@ def run():
     vozuz = microbit_init(MBIT_VOZUZ)
     gupaz = microbit_init(MBIT_GUPAZ)
     if vozuz is None or gupaz is None:
-        sys.exit(1)
-    try:
-        vozuz.subscribe_uart(vozuz_uart)
-    except:
-        logging.debug('Failed to subscribe to mbit UART')
-        sys.exit(1)
+        logging.error('Failed to find either vozuz or gupaz')
+    else:
+        try:
+            vozuz.subscribe_uart(vozuz_uart)
+        except:
+            logging.debug('Failed to subscribe to mbit UART')
+            sys.exit(1)
 
-    #
-    # dbus time!
-    # -- the dbus is for our bluetooth event subscriptions
-    #
+        #
+        # dbus time!
+        # -- the dbus is for our bluetooth event subscriptions
+        #
 
-    run_dbus_loop()
+        run_dbus_loop()
 
     #
     # Done!
@@ -162,8 +186,9 @@ def run_dbus_loop():
     Start the dbus loop
     """
     global loop
+
     DBusGMainLoop(set_as_default=True)
-    loop = GLib.MainLoop()
+    loop = GObject.MainLoop()
     loop.run()
 
 
