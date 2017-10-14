@@ -4,12 +4,9 @@ from gi.repository import GLib as GObject
 from .instruments import Minilogue, NordElectro2
 from .web_servers import run_ws_server, run_http_server
 from .microbit import MyMicrobit
-from .modules import Sequencer, Metronome,\
-    SEQUENCER_CB_CTYPE, OnStepCbs, METRONOME_CB_CTYPE
-from .worker import Worker
+from .modules import Sequencer, Metronome, SEQUENCER_CB_CTYPE, OnStepCbs, MidiWorker
 from .web_clients import MetaBalls, particles_cb, PolySequencer
 
-import json
 import multiprocessing as mp
 import sys
 import logging
@@ -33,9 +30,16 @@ def run():
         level=logging.DEBUG,
         format='%(relativeCreated)6d %(processName)s %(message)s')
 
-    minilogue_1 = Minilogue(MIDI_OUTPUTS[2])
-    minilogue_2 = Minilogue(MIDI_OUTPUTS[1])
-    nord = NordElectro2(MIDI_OUTPUTS[0])
+    instruments = {
+        'minilogue_1': Minilogue(MIDI_OUTPUTS[2]),
+        'minilogue_2': Minilogue(MIDI_OUTPUTS[1]),
+        'nord': NordElectro2(MIDI_OUTPUTS[0])
+    }
+    minilogue_1 = instruments['minilogue_1']
+    minilogue_2 = instruments['minilogue_2']
+    nord = instruments['nord']
+    midi_worker_queue = mp.Queue()
+    midi_worker = MidiWorker(q=midi_worker_queue, instruments=instruments)
 
     #
     # set up all the shared memory stuff
@@ -69,7 +73,14 @@ def run():
     # yapf: disable
     metronome = Metronome(pipes=metronome_write_pipes)
 
+    mono_sequencer_msgs = [
+        ('minilogue_1', 'beat_on', 'beat_off'),
+        ('minilogue_2', 'beat_on', 'beat_off')
+    ]
+
     mono_sequencer = Sequencer(
+        worker_queue=midi_worker_queue,
+        on_trigger_msgs=mono_sequencer_msgs,
         cbs=seq_cb_pool,
         cbs_length=seq_cb_pool_length,
         clock_pipe=mono_sequencer_pipe_r,
@@ -115,8 +126,11 @@ def run():
     #
 
     processes = [(run_ws_server, (ws_server_pipe_r, behaviors)),
-                 (metronome.loop, ()), (run_http_server, ()),
-                 (mono_sequencer.start, ()), (poly_sequencer.start, ())]
+                 (metronome.loop, ()),
+                 (run_http_server, ()),
+                 (midi_worker.start_consuming, ()),
+                 (mono_sequencer.start, ()),
+                 (poly_sequencer.start, ())]  # yapf: disable
 
     process_objs = [mp.Process(target=p[0], args=p[1]) for p in processes]
 

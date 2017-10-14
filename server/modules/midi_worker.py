@@ -1,12 +1,13 @@
 import logging
 
 
-class Worker:
+class MidiWorker:
     def __init__(self, q, instruments):
         self.q = q
         self.instruments = instruments
 
-    def start_consuing(self):
+    def start_consuming(self):
+        logging.debug('Midi Worker starting')
         while True:
             task = self.q.get()
             logging.debug('Worker got: {}'.format(task))
@@ -26,4 +27,4 @@ class Worker:
                 logging.error('Error: missing payload')
                 continue
 
-            method(payload)
+            method(*payload)

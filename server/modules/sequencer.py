@@ -1,22 +1,25 @@
-from ctypes import CFUNCTYPE, c_int, Structure
+from ctypes import CFUNCTYPE, c_int, Structure, Array, c_char_p
 
 import logging
 
 CB_CTYPE = CFUNCTYPE(None, c_int, c_int)
 
+Q_MSG_CTYPE = c_char_p * 3
 
 class OnStepCbs(Structure):
     _fields_ = [('on', CB_CTYPE), ('off', CB_CTYPE)]
 
 
 class Sequencer:
-    def __init__(self, clock_pipe, cbs, cbs_length, notes):
+    def __init__(self, worker_queue, on_trigger_msgs, clock_pipe, cbs, cbs_length, notes):
         self.off_note = 0
         self.step = 0
         self.clock_pipe = clock_pipe
         self.notes = notes
         self.cbs = cbs
         self.cbs_length = cbs_length
+        self.worke_queue = worker_queue
+        self.on_trigger_msgs = on_trigger_msgs
 
     def start(self):
         logging.debug('Mono sequencer starting')
@@ -30,19 +33,25 @@ class Sequencer:
 
         note = self.notes[self.step]
 
-        # make a local copy
-        l = self.cbs_length.value
-        cbs = self.cbs[:l]
-
         # we either have a note, or a rest -- do note off!
         if note is not 0:
-            for cb in cbs:
-                cb.off(self.off_note, self.step)
+            for msg in self.on_trigger_msgs:
+                task = {
+                    'instrument_name': msg[0],
+                    'method': msg[2],
+                    'payload': [self.off_note, self.step]
+                }
+                self.worke_queue.put(task)
 
         # we have a note -- play it!
         if note > 0:
             self.off_note = note
-            for cb in cbs:
-                cb.on(note, self.step)
+            for msg in self.on_trigger_msgs:
+                task = {
+                    'instrument_name': msg[0],
+                    'method': msg[1],
+                    'payload': [note, self.step]
+                }
+                self.worke_queue.put(task)
 
         self.step = (self.step + 1) % len(self.notes)
