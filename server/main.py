@@ -1,12 +1,12 @@
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 
-from .instruments.minilogue import Minilogue
+from .instruments import Minilogue, NordElectro2
 from .web_servers import run_ws_server, run_http_server
 from .microbit import MyMicrobit
 from .modules import Sequencer, Metronome, SEQUENCER_CB_CTYPE, OnStepCbs
 from .worker import Worker
-from .web_clients import MetaBalls, particles_cb
+from .web_clients import MetaBalls, particles_cb, PolySequencer
 
 import json
 import multiprocessing
@@ -29,6 +29,7 @@ def run():
 
     minilogue_1 = Minilogue('MIDI4x4:MIDI4x4 MIDI 3 20:2')
     minilogue_2 = Minilogue('MIDI4x4:MIDI4x4 MIDI 4 20:3')
+    nord = NordElectro2('MIDI4x4:MIDI4x4 MIDI 2 20:1')
 
     #
     # set up all the shared memory stuff
@@ -54,20 +55,31 @@ def run():
     metronome = Metronome(cbs=metronome_cb_pool, worker_queue=worker_queue)
     sequencer = Sequencer(
         cbs=seq_cb_pool, cbs_length=seq_cb_pool_length, notes=sequencer_notes)
+
+    #
+    # Build our web client handlers
+    #
+
     metaball = MetaBalls(instrument_cb=minilogue_1.voice_mode)
+    poly_sequencer = PolySequencer(nord.note_on)
+
+    #
+    # Add the metronome cbs
+    #
 
     metronome_cb_pool.append(sequencer.beat)
+    metronome_cb_pool.append(poly_sequencer.beat)
 
     #
     # Add the sequencer cbs
     #
 
-    sequencer_cb_tuples = [
-        (broadcast_sequencer_to_clients(ws_client_pool), noop_2ary),
-        (metaball.beat, noop_2ary),
-        (minilogue_1.beat_on, minilogue_1.beat_off),
-        (minilogue_2.beat_on, minilogue_2.beat_off)
-    ]
+    # yapf: disable
+    sequencer_cb_tuples = [(bcast_seq_to_clients(ws_client_pool), noop_2ary),
+                           (metaball.beat, noop_2ary),
+                           (minilogue_1.beat_on, minilogue_1.beat_off),
+                           (minilogue_2.beat_on, minilogue_2.beat_off)]
+    # yapf: enable
 
     for i, cb_tuple in enumerate(sequencer_cb_tuples):
         seq_cb_pool[i].on = SEQUENCER_CB_CTYPE(cb_tuple[0])
@@ -81,7 +93,8 @@ def run():
 
     behaviors = {
         'particles': particles_cb(minilogue_1),
-        'metaball': lambda data: metaball.set_data_points(data)
+        'metaball': lambda data: metaball.set_data_points(data),
+        'bulls-eye': poly_sequencer.set_notes
     }
 
     #
@@ -170,7 +183,7 @@ def vozuz_uart(l, data, sig):
 LCD = [60, 60, 58, 58, 60, 60, 58, 58, 60, 60, 58, 63, -1, 63, 58, 58]
 
 
-def broadcast_sequencer_to_clients(client_pool):
+def bcast_seq_to_clients(client_pool):
     """
     Takes a list of clients
     Returns a broadcaster function
