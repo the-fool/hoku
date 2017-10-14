@@ -24,6 +24,7 @@ class Metronome:
             cbs = self.cbs[:self.cbs_length.value]
             for cb in cbs:
                 cb(self.ts)
-                # self.worker_queue.put({'task': cb, 'args': [self.ts]})
+            for pipe in self.pipes:
+                pipe.send(self.ts)
             self.ts = self.ts + 1
             sleep_offset = time.time() - t

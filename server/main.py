@@ -75,9 +75,11 @@ def run():
         pipes=metronome_write_pipes,
         cbs=met_cb_pool,
         cbs_length=met_cb_pool_length)
-    sequencer = Sequencer(
+
+    mono_sequencer = Sequencer(
         cbs=seq_cb_pool,
         cbs_length=seq_cb_pool_length,
+        clock_pipe=mono_sequencer_pipe_r,
         notes=sequencer_notes)
     # yapf: enable
 
@@ -92,7 +94,7 @@ def run():
     # Add the metronome cbs
     #
 
-    metronome_cbs = [sequencer.beat, poly_sequencer.beat]
+    metronome_cbs = [poly_sequencer.beat]
     for i, cb in enumerate(metronome_cbs):
         met_cb_pool[i] = METRONOME_CB_CTYPE(cb)
         met_cb_pool_length_i += 1
@@ -131,10 +133,12 @@ def run():
     ws_p = mp.Process(target=run_ws_server, args=(ws_server_pipe_r, behaviors))
     metronome_p = mp.Process(target=metronome.loop, args=())
     http_p = mp.Process(target=run_http_server, args=())
+    mono_sequencer_p = mp.Process(target=mono_sequencer.start)
 
     ws_p.start()
     metronome_p.start()
     http_p.start()
+    mono_sequencer_p.start()
 
     #
     # Do the microbit things:

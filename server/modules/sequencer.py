@@ -8,12 +8,18 @@ class OnStepCbs(Structure):
 
 
 class Sequencer:
-    def __init__(self, cbs, cbs_length, notes):
+    def __init__(self, clock_pipe, cbs, cbs_length, notes):
         self.off_note = 0
         self.step = 0
+        self.clock_pipe = clock_pipe
         self.notes = notes
         self.cbs = cbs
         self.cbs_length = cbs_length
+
+    def start(self):
+        while True:
+            ts = self.clock_pipe.recv()
+            self.beat(ts)
 
     def beat(self, ts):
         # when note is == 0, hold
