@@ -3,7 +3,7 @@ import logging
 
 
 class Metronome:
-    def __init__(self, pipes, bpm=40, steps=4):
+    def __init__(self, pipes, bpm=110, steps=4):
         self.ts = 0  # unique timestamp -- just an incrementing int!
         self.bpm = bpm
         self.pipes = pipes
