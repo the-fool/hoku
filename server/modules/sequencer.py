@@ -1,23 +1,12 @@
-from ctypes import CFUNCTYPE, c_int, Structure, Array, c_char_p
-
 import logging
-
-CB_CTYPE = CFUNCTYPE(None, c_int, c_int)
-
-Q_MSG_CTYPE = c_char_p * 3
-
-class OnStepCbs(Structure):
-    _fields_ = [('on', CB_CTYPE), ('off', CB_CTYPE)]
 
 
 class Sequencer:
-    def __init__(self, worker_queue, on_trigger_msgs, clock_pipe, cbs, cbs_length, notes):
+    def __init__(self, worker_queue, on_trigger_msgs, clock_pipe, notes):
         self.off_note = 0
         self.step = 0
         self.clock_pipe = clock_pipe
         self.notes = notes
-        self.cbs = cbs
-        self.cbs_length = cbs_length
         self.worke_queue = worker_queue
         self.on_trigger_msgs = on_trigger_msgs
 

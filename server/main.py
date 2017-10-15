@@ -4,7 +4,7 @@ from gi.repository import GLib as GObject
 from .instruments import Minilogue, NordElectro2
 from .web_servers import run_ws_server, run_http_server
 from .microbit import MyMicrobit
-from .modules import Sequencer, Metronome, SEQUENCER_CB_CTYPE, OnStepCbs, MidiWorker
+from .modules import Sequencer, Metronome, MidiWorker
 from .web_clients import MetaBalls, particles_cb, PolySequencer
 
 import multiprocessing as mp
@@ -36,8 +36,8 @@ def run():
         'nord': NordElectro2(MIDI_OUTPUTS[0])
     }
     minilogue_1 = instruments['minilogue_1']
-    minilogue_2 = instruments['minilogue_2']
     nord = instruments['nord']
+
     midi_worker_queue = mp.Queue()
     midi_worker = MidiWorker(q=midi_worker_queue, instruments=instruments)
 
@@ -45,10 +45,6 @@ def run():
     # set up all the shared memory stuff
     # -- manager things are not performance critical
     #
-
-    seq_cb_pool = mp.Array(OnStepCbs, 64)
-    seq_cb_pool_length_i = 0
-    seq_cb_pool_length = mp.Value('i', seq_cb_pool_length_i)
 
     sequencer_notes = mp.Array('i', LCD)
 
@@ -59,11 +55,13 @@ def run():
     ws_server_pipe_w, ws_server_pipe_r = mp.Pipe()
     mono_sequencer_pipe_w, mono_sequencer_pipe_r = mp.Pipe()
     poly_sequencer_pipe_w, poly_sequencer_pipe_r = mp.Pipe()
+    metaball_pipe_w, metaball_pipe_r = mp.Pipe()
 
     metronome_write_pipes = [
         ws_server_pipe_w,
         mono_sequencer_pipe_w,
-        poly_sequencer_pipe_w
+        poly_sequencer_pipe_w,
+        metaball_pipe_w
     ]  # yapf: disable
 
     #
@@ -81,8 +79,6 @@ def run():
     mono_sequencer = Sequencer(
         worker_queue=midi_worker_queue,
         on_trigger_msgs=mono_sequencer_msgs,
-        cbs=seq_cb_pool,
-        cbs_length=seq_cb_pool_length,
         clock_pipe=mono_sequencer_pipe_r,
         notes=sequencer_notes)
     # yapf: enable
@@ -91,7 +87,15 @@ def run():
     # Build our web client handlers
     #
 
-    metaball = MetaBalls(instrument_cb=minilogue_1.voice_mode)
+    metaball_client_pipe_w, metaball_client_pipe_r = mp.Pipe()
+
+    metaball = MetaBalls(
+        clock_pipe=metaball_pipe_r,
+        worker_queue=midi_worker_queue,
+        msg={'instrument_name': 'minilogue_1',
+             'method': 'voice_mode'},
+        client_pipe=metaball_client_pipe_r)
+
     poly_sequencer = PolySequencer(
         clock_pipe=poly_sequencer_pipe_r, instrument_cb=nord.note_on)
 
@@ -99,25 +103,13 @@ def run():
     # Add the sequencer cbs
     #
 
-    # yapf: disable
-    sequencer_cb_tuples = [(metaball.beat, noop_2ary),
-                           (minilogue_1.beat_on, minilogue_1.beat_off),
-                           (minilogue_2.beat_on, minilogue_2.beat_off)]
-    # yapf: enable
-
-    for i, cb_tuple in enumerate(sequencer_cb_tuples):
-        seq_cb_pool[i].on = SEQUENCER_CB_CTYPE(cb_tuple[0])
-        seq_cb_pool[i].off = SEQUENCER_CB_CTYPE(cb_tuple[1])
-        seq_cb_pool_length_i += 1
-    seq_cb_pool_length.value = seq_cb_pool_length_i
-
     #
     # WebSocket server behaviors
     #
 
     behaviors = {
         'particles': particles_cb(minilogue_1),
-        'metaball': lambda data: metaball.set_data_points(data),
+        'metaball': lambda data: metaball_client_pipe_w.send(data),
         'bulls-eye': poly_sequencer.set_notes
     }
 
@@ -126,6 +118,7 @@ def run():
     #
 
     processes = [(run_ws_server, (ws_server_pipe_r, behaviors)),
+                 (metaball.start, ()),
                  (metronome.loop, ()),
                  (run_http_server, ()),
                  (midi_worker.start_consuming, ()),

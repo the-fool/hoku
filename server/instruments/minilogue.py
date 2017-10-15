@@ -24,10 +24,10 @@ class Minilogue(BaseInstrument):
     def resonance(self, value):
         self._control(self.RESONANCE, value)
 
-    def beat_on(self, note, step):
+    def beat_on(self, note, step=0):
         self.note_on(note=note)
 
-    def beat_off(self, note, step):
+    def beat_off(self, note, step=0):
         self.note_off(note=note)
 
     def voice_mode(self, val):
