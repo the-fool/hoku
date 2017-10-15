@@ -35,7 +35,6 @@ def run():
         'minilogue_2': Minilogue(MIDI_OUTPUTS[1]),
         'nord': NordElectro2(MIDI_OUTPUTS[0])
     }
-    minilogue_1 = instruments['minilogue_1']
     nord = instruments['nord']
 
     midi_worker_queue = mp.Queue()
@@ -87,14 +86,14 @@ def run():
     # Build our web client handlers
     #
 
-    metaball_client_pipe_w, metaball_client_pipe_r = mp.Pipe()
+    metaball_web_client_pipe_w, metaball_web_client_pipe_r = mp.Pipe()
 
     metaball = MetaBalls(
         clock_pipe=metaball_pipe_r,
         worker_queue=midi_worker_queue,
         msg={'instrument_name': 'minilogue_1',
              'method': 'voice_mode'},
-        client_pipe=metaball_client_pipe_r)
+        client_pipe=metaball_web_client_pipe_r)
 
     poly_sequencer = PolySequencer(
         clock_pipe=poly_sequencer_pipe_r, instrument_cb=nord.note_on)
@@ -108,8 +107,8 @@ def run():
     #
 
     behaviors = {
-        'particles': particles_cb(minilogue_1),
-        'metaball': lambda data: metaball_client_pipe_w.send(data),
+        'particles': particles_cb(midi_worker_queue),
+        'metaball': lambda data: metaball_web_client_pipe_w.send(data),
         'bulls-eye': poly_sequencer.set_notes
     }
 
@@ -162,7 +161,8 @@ def run():
             p.join()
     except (KeyboardInterrupt, ):
         for i in range(127):
-            minilogue_1.note_off(i)
+            for instrument in instruments.values():
+                instrument.note_off(i)
         sys.exit()
 
 

@@ -26,7 +26,7 @@ def wsHandler(lock, client_pool, behaviors):
 
         def handleMessage(self):
             data = json.loads(self.data)
-            logging.debug('{}'.format(data))
+            # logging.debug('{}'.format(data))
             behaviors[self.name](data)
 
     return Handler
