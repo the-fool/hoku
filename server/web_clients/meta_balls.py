@@ -3,11 +3,11 @@ import logging
 
 
 class MetaBalls:
-    def __init__(self, clock_pipe, worker_queue, client_pipe, msg):
+    def __init__(self, clock_pipe, worker_pipe, client_pipe, msg):
         self.lock = threading.Lock()
         self.n_steps = 8
         self.msg = msg
-        self.worker_queue = worker_queue
+        self.worker_pipe = worker_pipe
         self.clock_pipe = clock_pipe
         self.data = [0] * self.n_steps
         self.client_pipe = client_pipe
@@ -35,7 +35,7 @@ class MetaBalls:
         with self.lock:
             val = self.data[step] * 100
         self.msg.update({'payload': [val]})
-        self.worker_queue.put(self.msg)
+        self.worker_pipe.send(self.msg)
 
     def clock_reader(self):
         while True:

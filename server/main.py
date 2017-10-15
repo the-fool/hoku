@@ -37,8 +37,8 @@ def run():
     }
     nord = instruments['nord']
 
-    midi_worker_queue = mp.Queue()
-    midi_worker = MidiWorker(q=midi_worker_queue, instruments=instruments)
+    midi_worker_pipe_r, midi_worker_pipe_w = mp.Pipe(duplex=False)
+    midi_worker = MidiWorker(p=midi_worker_pipe_r, instruments=instruments)
 
     #
     # set up all the shared memory stuff
@@ -51,10 +51,10 @@ def run():
     # Metronome write pipes
     #
 
-    ws_server_pipe_w, ws_server_pipe_r = mp.Pipe()
-    mono_sequencer_pipe_w, mono_sequencer_pipe_r = mp.Pipe()
-    poly_sequencer_pipe_w, poly_sequencer_pipe_r = mp.Pipe()
-    metaball_pipe_w, metaball_pipe_r = mp.Pipe()
+    ws_server_pipe_r, ws_server_pipe_w = mp.Pipe(duplex=False)
+    mono_sequencer_pipe_r, mono_sequencer_pipe_w = mp.Pipe(duplex=False)
+    poly_sequencer_pipe_r, poly_sequencer_pipe_w = mp.Pipe(duplex=False)
+    metaball_pipe_r, metaball_pipe_w = mp.Pipe(duplex=False)
 
     metronome_write_pipes = [
         ws_server_pipe_w,
@@ -76,7 +76,7 @@ def run():
     ]
 
     mono_sequencer = Sequencer(
-        worker_queue=midi_worker_queue,
+        worker_pipe=midi_worker_pipe_w,
         on_trigger_msgs=mono_sequencer_msgs,
         clock_pipe=mono_sequencer_pipe_r,
         notes=sequencer_notes)
@@ -90,7 +90,7 @@ def run():
 
     metaball = MetaBalls(
         clock_pipe=metaball_pipe_r,
-        worker_queue=midi_worker_queue,
+        worker_pipe=midi_worker_pipe_w,
         msg={'instrument_name': 'minilogue_1',
              'method': 'voice_mode'},
         client_pipe=metaball_web_client_pipe_r)
@@ -107,7 +107,7 @@ def run():
     #
 
     behaviors = {
-        'particles': particles_cb(midi_worker_queue),
+        'particles': particles_cb(midi_worker_pipe_w),
         'metaball': lambda data: metaball_web_client_pipe_w.send(data),
         'bulls-eye': poly_sequencer.set_notes
     }

@@ -2,12 +2,12 @@ import logging
 
 
 class Sequencer:
-    def __init__(self, worker_queue, on_trigger_msgs, clock_pipe, notes):
+    def __init__(self, worker_pipe, on_trigger_msgs, clock_pipe, notes):
         self.off_note = 0
         self.step = 0
         self.clock_pipe = clock_pipe
         self.notes = notes
-        self.worke_queue = worker_queue
+        self.worke_pipe = worker_pipe
         self.on_trigger_msgs = on_trigger_msgs
 
     def start(self):
@@ -30,7 +30,7 @@ class Sequencer:
                     'method': msg[2],
                     'payload': [self.off_note, self.step]
                 }
-                self.worke_queue.put(task)
+                self.worke_pipe.send(task)
 
         # we have a note -- play it!
         if note > 0:
@@ -41,6 +41,6 @@ class Sequencer:
                     'method': msg[1],
                     'payload': [note, self.step]
                 }
-                self.worke_queue.put(task)
+                self.worke_pipe.send(task)
 
         self.step = (self.step + 1) % len(self.notes)
