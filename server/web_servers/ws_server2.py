@@ -28,13 +28,14 @@ class MainServer(threading.Thread):
             if data:
                 self.broadcast('{"GPS": "%s"}' % data)
 
-            time.sleep(0.04)
-        
+            time.sleep(1.04)
 
     async def handler(self, websocket, path):
         self.connected.add(websocket)
         try:
-            await websocket.recv()
+            while True:
+                x = await websocket.recv()
+                print('got', x)
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
