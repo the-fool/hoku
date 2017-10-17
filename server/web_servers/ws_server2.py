@@ -44,7 +44,7 @@ class MainServer(threading.Thread):
         for websocket in self.connected:
             print("Sending data: %s" % data)
             coro = websocket.send(data)
-            future = asyncio.run_coroutine_threadsafe(coro, self.loop)
+            asyncio.run_coroutine_threadsafe(coro, self.loop)
 
 
 def main():
