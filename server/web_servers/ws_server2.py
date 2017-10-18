@@ -6,6 +6,7 @@ import random
 import json
 import logging
 import queue
+import math
 
 
 class WsPool:
@@ -30,8 +31,51 @@ class WsPool:
             return cb(self.pool)
 
 
+ARENA_SIZE = (600, 500)
+
+
+def bug_factory(kind, pitch):
+    x, y = random_pos()
+    return {
+        'pk': int((time.monotonic()) * 100),
+        'kind': kind,
+        'pitch': pitch,
+        'heartbeat': time.time(),
+        'deg': random.randint(0, 360),
+        'vel': 0,
+        'x': x,
+        'y': y,
+        'targetX': x,
+        'targetY': y,
+        'joined': 0,
+        'to_ding': False,
+        'dinging': False,
+        'when_donged': 0,
+        'duration': 0.5
+    }
+
+
+DELTA_VELOCITY = 0.001
+DEFAULT_VELOCITY = 2
+DELTA_DEGREE = 2
+
+
 def tick_bugs(pool):
-    pass
+    for i in pool:
+        agent = i.agent
+        if not agent:
+            continue
+        agent['vel'] -= DELTA_VELOCITY
+        if agent['vel'] < 1:
+            agent['deg'] = (agent['deg'] + random.randint(45, 225)) % 360
+            agent['vel'] = DEFAULT_VELOCITY
+
+        v = agent['vel']
+        d = agent['deg']
+
+        agent['x'] = (v * math.cos(d) + agent['x']) % ARENA_SIZE[0]
+        agent['y'] = (v * math.sin(d) + agent['y']) % ARENA_SIZE[1]
+        # agent['deg'] = (d + random.random() * 2) % 360
 
 
 def bug_kind_to_instrument(kind):
@@ -45,7 +89,8 @@ def get_midi_events(pool):
     t = time.time()
 
     def needs_note_off(agent):
-        return agent['dinging'] and agent['when_donged'] < (t - agent['duration'])
+        return agent['dinging'] and agent['when_donged'] < (
+            t - agent['duration'])
 
     def warrants_midi_event(agent):
         if not agent:
@@ -89,15 +134,6 @@ class Worker(threading.Thread):
         self.midi_worker_pipe = midi_worker_pipe
         self.state_queue = q
 
-    def get_petri_state(self):
-        def reduce_it(pool):
-            i = 0
-            for x in pool:
-                i += getattr(x.agent, 'pk', 0)
-            return i
-
-        return self.pool.process(reduce_it)
-
     def run(self):
         while True:
             # 60 fps
@@ -106,7 +142,7 @@ class Worker(threading.Thread):
             if self.state_queue.qsize() < 10:
                 self.pool.process(tick_bugs)
                 agents = self.pool.process(map_pool_to_game_state)
-                self.state_queue.put({'agents': agents})
+                self.state_queue.put(json.dumps({'agents': agents}))
 
             midi_events = self.pool.process(get_midi_events)
 
@@ -114,34 +150,10 @@ class Worker(threading.Thread):
                 self.midi_worker_pipe.send(e)
 
 
-ARENA_SIZE = (600, 500)
-
-
 def random_pos():
     x = random.randint(0, ARENA_SIZE[0])
     y = random.randint(0, ARENA_SIZE[1])
     return (x, y)
-
-
-def bug_factory(kind, pitch):
-    x, y = random_pos()
-    return {
-        'pk': int((time.monotonic()) * 100),
-        'kind': kind,
-        'pitch': pitch,
-        'heartbeat': time.time(),
-        'deg': random.randint(0, 360),
-        'vel': 0,
-        'x': x,
-        'y': y,
-        'targetX': x,
-        'targetY': y,
-        'joined': 0,
-        'to_ding': False,
-        'dinging': False,
-        'when_donged': 0,
-        'duration': 0.5
-    }
 
 
 def update_heartbeat(agent):
@@ -165,7 +177,7 @@ class MainServer(threading.Thread):
         while True:
             petri_state = self.state_queue.get()
             logging.info('petri state: {}'.format(petri_state))
-            self.broadcast(json.dumps(petri_state))
+            self.broadcast(petri_state)
 
     async def handler(self, websocket, path):
         websocket.agent = None
@@ -188,6 +200,10 @@ class MainServer(threading.Thread):
         self.pool.process(_broadcast)
 
     def unicast(self, websocket, data):
+        if not websocket.open:
+            self.pool.remove(websocket)
+            return
+
         coro = websocket.send(data)
         asyncio.run_coroutine_threadsafe(coro, self.loop)
 

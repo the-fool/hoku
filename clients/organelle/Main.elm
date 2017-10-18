@@ -1,8 +1,10 @@
 module Main exposing (..)
+
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import WebSocket
 import Html exposing (..)
+import Json.Encode as JE
 
 
 main =
@@ -18,38 +20,102 @@ main =
 -- MODEL
 
 
+type alias NewBug =
+    { pitch : Int
+    , kind : Int
+    }
+
+
 type alias Model =
-    { input : String
-    , messages : List String
+    { message : String
+    , newBug : NewBug
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model "" [], Cmd.none )
+    ( Model
+        ""
+        { pitch = 0, kind = 0 }
+    , Cmd.none
+    )
+
+
+bugToJSON : NewBug -> String
+bugToJSON bug =
+    let
+        obj =
+            JE.object
+                [ ( "pitch", JE.int bug.pitch )
+                , ( "kind", JE.int bug.kind )
+                ]
+    in
+        JE.encode 0 obj
+
+
+wsMsg : WsMsgKind -> Maybe String -> String
+wsMsg kind payload =
+    let
+        kindString =
+            wsMsgKindToString kind
+
+        toPayload =
+            Maybe.withDefault "" payload
+
+        obj =
+            JE.object [ ( "kind", JE.string kindString ), ( "payload", JE.string toPayload ) ]
+    in
+        JE.encode 0 obj
 
 
 
 -- UPDATE
 
 
+type WsMsgKind
+    = Ping
+    | Create
+    | Ding
+
+
+wsMsgKindToString : WsMsgKind -> String
+wsMsgKindToString kind =
+    case kind of
+        Ping ->
+            "ping"
+
+        Create ->
+            "create"
+
+        Ding ->
+            "ding"
+
+
 type Msg
-    = Input String
-    | Send
+    = Send WsMsgKind
     | NewMessage String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg { input, messages } =
+update msg model =
     case msg of
-        Input newInput ->
-            ( Model newInput messages, Cmd.none )
+        Send kind ->
+            let
+                payload =
+                    case kind of
+                        Ping ->
+                            Nothing
 
-        Send ->
-            ( Model "" messages, WebSocket.send "ws://127.0.0.1:7700" input )
+                        Create ->
+                            Just (bugToJSON model.newBug)
+
+                        Ding ->
+                            Nothing
+            in
+                ( model, WebSocket.send "ws://127.0.0.1:7700" <| wsMsg kind payload )
 
         NewMessage str ->
-            ( Model input (str :: messages), Cmd.none )
+            ( { model | message = str }, Cmd.none )
 
 
 
@@ -68,9 +134,8 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [] (List.map viewMessage model.messages)
-        , input [ onInput Input ] []
-        , button [ onClick Send ] [ text "Send" ]
+        [ viewMessage model.message
+        , button [ onClick <| Send Ping ] [ text "Send" ]
         ]
 
 
