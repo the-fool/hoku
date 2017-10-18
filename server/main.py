@@ -1,7 +1,7 @@
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib as GObject
 
-from .instruments import Minilogue, NordElectro2
+from .instruments.four_by_four import instruments
 from .web_servers import run_ws_server, run_http_server
 from .microbit import MyMicrobit
 from .modules import Sequencer, Metronome, MidiWorker
@@ -15,11 +15,6 @@ MBIT_VOZUZ = 'DE:ED:5C:B4:E3:73'
 MBIT_GUPAZ = 'D5:38:B0:2D:BF:B6'
 DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
-MIDI_OUTPUTS = [
-    'MIDI4x4:MIDI4x4 MIDI 1 20:0', 'MIDI4x4:MIDI4x4 MIDI 2 20:1',
-    'MIDI4x4:MIDI4x4 MIDI 3 20:2', 'MIDI4x4:MIDI4x4 MIDI 4 20:3'
-]
-
 
 def noop_2ary(a, b):
     pass
@@ -29,13 +24,6 @@ def run():
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(relativeCreated)6d %(processName)s %(message)s')
-
-    instruments = {
-        'minilogue_1': Minilogue(MIDI_OUTPUTS[2]),
-        'minilogue_2': Minilogue(MIDI_OUTPUTS[1]),
-        'nord': NordElectro2(MIDI_OUTPUTS[0])
-    }
-    nord = instruments['nord']
 
     midi_worker_pipe_r, midi_worker_pipe_w = mp.Pipe(duplex=False)
     midi_worker = MidiWorker(p=midi_worker_pipe_r, instruments=instruments)
@@ -96,7 +84,9 @@ def run():
         client_pipe=metaball_web_client_pipe_r)
 
     poly_sequencer = PolySequencer(
-        clock_pipe=poly_sequencer_pipe_r, instrument_cb=nord.note_on)
+        clock_pipe=poly_sequencer_pipe_r,
+        msg={'instrument_name': 'nord',
+             'method': 'note_on'})
 
     #
     # Add the sequencer cbs

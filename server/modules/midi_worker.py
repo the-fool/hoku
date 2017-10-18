@@ -8,7 +8,7 @@ class MidiWorker:
         self.i = 0
 
     def start_consuming(self):
-        logging.debug('Midi Worker starting')
+        logging.info('Midi Worker starting')
         while True:
             task = self.p.recv()
             #  logging.debug('Worker got: {}'.format(task))
