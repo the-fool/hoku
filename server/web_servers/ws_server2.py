@@ -9,7 +9,7 @@ import queue
 import math
 
 
-class WsPool:
+class Pool:
     def __init__(self):
         self.pool = set()
         self.lock = threading.Lock()
@@ -31,7 +31,9 @@ class WsPool:
             return cb(self.pool)
 
 
-ARENA_SIZE = (600, 500)
+ARENA_SIZE = (1200, 700)
+
+PITCH_TO_SCALE = [58, 60, 62, 63, 65, 67, 69, 70]
 
 
 def bug_factory(kind, pitch):
@@ -39,10 +41,9 @@ def bug_factory(kind, pitch):
     return {
         'pk': int((time.monotonic()) * 100),
         'kind': kind,
-        'pitch': pitch,
-        'heartbeat': time.time(),
+        'pitch': PITCH_TO_SCALE[pitch],
         'deg': random.randint(0, 360),
-        'vel': 0,
+        'vel': DEFAULT_VELOCITY,
         'x': x,
         'y': y,
         'targetX': x,
@@ -56,17 +57,24 @@ def bug_factory(kind, pitch):
 
 
 DELTA_VELOCITY = 0.001
-DEFAULT_VELOCITY = 2
+C_VELOCITY = 0.01
+DEFAULT_VELOCITY = 3
 DELTA_DEGREE = 2
 
 
 def tick_bugs(pool):
     for i in pool:
+
+        if not i.is_agent:
+            continue
+
         agent = i.agent
         if not agent:
             continue
-        agent['vel'] -= DELTA_VELOCITY
-        if agent['vel'] < 1:
+
+        if agent['vel'] > 0.2:
+            agent['vel'] -= (agent['vel'] - 0.1) * C_VELOCITY
+        if agent['to_ding']:
             agent['deg'] = (agent['deg'] + random.randint(45, 225)) % 360
             agent['vel'] = DEFAULT_VELOCITY
 
@@ -75,7 +83,6 @@ def tick_bugs(pool):
 
         agent['x'] = (v * math.cos(d) + agent['x']) % ARENA_SIZE[0]
         agent['y'] = (v * math.sin(d) + agent['y']) % ARENA_SIZE[1]
-        # agent['deg'] = (d + random.random() * 2) % 360
 
 
 def bug_kind_to_instrument(kind):
@@ -128,9 +135,9 @@ def get_midi_events(pool):
 
 
 class Worker(threading.Thread):
-    def __init__(self, pool, midi_worker_pipe, q):
+    def __init__(self, agent_pool, midi_worker_pipe, q):
         threading.Thread.__init__(self)
-        self.pool = pool
+        self.pool = agent_pool
         self.midi_worker_pipe = midi_worker_pipe
         self.state_queue = q
 
@@ -139,10 +146,12 @@ class Worker(threading.Thread):
             # 60 fps
             time.sleep(1 / 60)
 
-            if self.state_queue.qsize() < 10:
-                self.pool.process(tick_bugs)
-                agents = self.pool.process(map_pool_to_game_state)
-                self.state_queue.put(json.dumps({'agents': agents}))
+            if self.state_queue.qsize() > 10:
+                continue
+
+            self.pool.process(tick_bugs)
+            agents = self.pool.process(map_pool_to_game_state)
+            self.state_queue.put(json.dumps({'agents': agents}))
 
             midi_events = self.pool.process(get_midi_events)
 
@@ -154,10 +163,6 @@ def random_pos():
     x = random.randint(0, ARENA_SIZE[0])
     y = random.randint(0, ARENA_SIZE[1])
     return (x, y)
-
-
-def update_heartbeat(agent):
-    agent['heartbeat'] = time.time()
 
 
 def map_pool_to_game_state(pool):
@@ -176,28 +181,37 @@ class MainServer(threading.Thread):
     def run(self):
         while True:
             petri_state = self.state_queue.get()
-            logging.info('petri state: {}'.format(petri_state))
-            self.broadcast(petri_state)
+            self.broadcast_state(petri_state)
 
     async def handler(self, websocket, path):
         websocket.agent = None
-        self.pool.add(websocket)
+        if path == '/':
+            websocket.is_agent = True
+            self.pool.add(websocket)
+        elif path == '/petri':
+            websocket.is_agent = False
+            self.pool.add(websocket)
+        else:
+            print('Error: Incorrect path {}'.format(path))
+            return
         try:
             while True:
                 x = await websocket.recv()
                 logging.info('Got: {}'.format(x))
                 self.dispatch(x, websocket)
-        except websockets.exceptions.ConnectionClosed:
-            pass
-        finally:
+        except:
             self.pool.remove(websocket)
 
-    def broadcast(self, data):
+    def broadcast(self, data, pred=lambda _: True):
         def _broadcast(pool):
             for x in pool:
-                self.unicast(x, data)
+                if pred(x):
+                    self.unicast(x, data)
 
         self.pool.process(_broadcast)
+
+    def broadcast_state(self, data):
+        self.broadcast(data, lambda ws: not ws.is_agent)
 
     def unicast(self, websocket, data):
         if not websocket.open:
@@ -205,7 +219,11 @@ class MainServer(threading.Thread):
             return
 
         coro = websocket.send(data)
-        asyncio.run_coroutine_threadsafe(coro, self.loop)
+        try:
+            asyncio.run_coroutine_threadsafe(coro, self.loop)
+        except:
+            self.pool.remove(websocket)
+            websocket.close()
 
     def dispatch(self, data, websocket):
         try:
@@ -218,10 +236,7 @@ class MainServer(threading.Thread):
         payload = data.get('payload', None)
 
         if kind == 'ping':
-            agent = websocket.agent
-            if agent:
-                update_heartbeat(agent)
-
+            update_heartbeat(websocket)
             self.unicast(websocket, 'pong')
 
         elif kind == 'create':
@@ -234,10 +249,14 @@ class MainServer(threading.Thread):
             websocket.agent['to_ding'] = True
 
 
+def update_heartbeat(ws):
+    ws.heartbeat = time.time()
+
+
 def main(midi_worker_pipe):
     q = queue.Queue()
     loop = asyncio.get_event_loop()
-    pool = WsPool()
+    pool = Pool()
     worker = Worker(pool, midi_worker_pipe, q)
     server = MainServer(worker, loop, pool, q)
     try:

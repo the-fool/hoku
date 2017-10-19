@@ -1,0 +1,11 @@
+body {
+  background: #04050c;
+}
+
+#kind-control {
+  stroke: green;
+}
+
+#pitch-control {
+  fill: white;
+}

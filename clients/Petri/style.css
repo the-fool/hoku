@@ -1,0 +1,9 @@
+body {
+  background: #04050c;
+
+}
+
+g.bug circle {
+  stroke: green;
+  fill: green;
+}
