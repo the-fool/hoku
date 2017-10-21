@@ -29,9 +29,12 @@ body * {
   box-sizing: border-box;
 }
 
-
 .pitch-box {
   font-family: euro-bold;
+}
+
+.selected {
+  background: $teal;
 }
 
 .bordered {
@@ -94,63 +97,59 @@ main {
   }
 }
 
-#controls {
-  width: 100%;
-}
-
 #controller {
   width: 100%;
   display: none;
 }
 
-#pitch-glyph, #bug-glyph {
-  padding: 15px 10px 0
-}
-
-#bug-selector,
-#pitch-selector {
+#controls {
   width: 100%;
-  margin-top: 30px;
-}
-
-#bug-options > div {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#bug-selector > div {
-  height: $touch-box-size;
-}
-
-#bug-options > div.selected,
-.pitch-box.selected {
-  background: $teal;
-}
 
 
-#bug-glyph, #bug-options > div {
-  width: $touch-box-size;
-}
 
-#pitch-selector {
-  > div {
+
+  #pitch-glyph, #bug-glyph {
+    padding: 15px 10px 0
+  }
+
+  #bug-selector,
+  #pitch-selector {
+    width: 100%;
+    margin-top: 30px;
+  }
+
+  #bug-options > div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #bug-selector > div {
     height: $touch-box-size;
   }
 
-  .pitch-box {
-    @extend .bordered;
+  #bug-glyph, #bug-options > div {
+    width: $touch-box-size;
+  }
 
-    height: $touch-box-size;
-    font-family: euro-bold;
-    flex: 1;
-    margin: 0 2px;
-    color: $cream;
-    padding: 3px;
-    text-transform: uppercase;
+  #pitch-selector {
+    > div {
+      height: $touch-box-size;
+    }
+
+    .pitch-box {
+      @extend .bordered;
+
+      height: $touch-box-size;
+      font-family: euro-bold;
+      flex: 1;
+      margin: 0 2px;
+      color: $cream;
+      padding: 3px;
+      text-transform: uppercase;
+    }
   }
 }
-
 @keyframes ckw {
   from {
     transform: rotate(0deg);
