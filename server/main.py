@@ -133,7 +133,7 @@ def run():
         logging.error('Failed to find either vozuz or gupaz')
     else:
         try:
-            vozuz.subscribe_uart(vozuz_uart)
+            vozuz.subscribe_uart(make_subscriber(midi_worker_pipe_w))
         except:
             logging.debug('Failed to subscribe to mbit UART')
             sys.exit(1)
@@ -179,17 +179,31 @@ def run_dbus_loop():
     loop.run()
 
 
-def vozuz_uart(l, data, sig):
-    """
+def make_subscriber(midi_worker_pipe_w):
+    msg = {
+        'instrument_name': 'minilogue_1',
+        'method': 'cutoff',
+        'payload': [0]
+    }
+
+    def vozuz_uart(l, data, sig):
+        """
     Callback routine for the vozuz mbit
     Vozuz is the colored rotating thing
     """
-    val = int(''.join(chr(c) for c in data['Value']))
-    val = abs(val)
-    print('unscaled value', val)
-    val = custom_domain_to_midi(val, 0, 180)
-    print('scaled value', val)
-    # minilogue_1.cutoff(val)
+        try:
+            val = int(''.join(chr(c) for c in data['Value']))
+        except:
+            print('error with subscriptions')
+            val = 0
+        val = abs(val)
+        print('unscaled value', val)
+        val = custom_domain_to_midi(val, 0, 180)
+        print('scaled value', val)
+        msg['payload'] = [val]
+        midi_worker_pipe_w.send(msg)
+
+    return vozuz_uart
 
 
 # Get Innocuous!
