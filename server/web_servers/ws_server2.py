@@ -170,6 +170,147 @@ def map_pool_to_game_state(pool):
     return agents
 
 
+connections = set()
+bugs = set()
+
+
+def tick_bugs2():
+    global bugs
+    for agent in bugs:
+        if agent['vel'] > 0.2:
+            agent['vel'] -= (agent['vel'] - 0.1) * C_VELOCITY
+        if agent['to_ding']:
+            agent['deg'] = (agent['deg'] + random.randint(45, 225)) % 360
+            agent['vel'] = DEFAULT_VELOCITY
+
+        v = agent['vel']
+        d = agent['deg']
+
+        agent['x'] = (v * math.cos(d) + agent['x']) % ARENA_SIZE[0]
+        agent['y'] = (v * math.sin(d) + agent['y']) % ARENA_SIZE[1]
+
+
+def get_midi_events2():
+    global bugs
+
+    t = time.time()
+
+    def needs_note_off(agent):
+        return agent['dinging'] and agent['when_donged'] < (
+            t - agent['duration'])
+
+    def warrants_midi_event(agent):
+        if not agent:
+            return False
+        if needs_note_off(agent):
+            return True
+        if agent['to_ding']:
+            return True
+        return False
+
+    def to_msg(agent):
+        def method_name(agent):
+            if needs_note_off(agent):
+                agent['dinging'] = False
+                print('NOTE_OFF')
+                return 'note_off'
+
+            if agent['to_ding']:
+                agent['to_ding'] = False
+                agent['dinging'] = True
+                agent['when_donged'] = t
+                print('NOTE_ON')
+                return 'note_on'
+            else:
+                print('ERROR')
+                raise 'what is going on? {}'.format(agent)
+
+        return {
+            'instrument_name': bug_kind_to_instrument(agent['kind']),
+            'method': method_name(agent),
+            'payload': [agent['pitch']]
+        }
+
+    return [to_msg(x) for x in bugs if warrants_midi_event(bugs)]
+
+
+worker_event = asyncio.Event()
+
+
+async def worker(midi_worker_pipe):
+    global agents
+    while True:
+        await asyncio.sleep(1 / 60)
+        tick_bugs2
+        worker_event.set()
+        midi_events = get_midi_events2()
+        for e in midi_events:
+            midi_worker_pipe.send(e)
+
+
+async def producer_handler():
+    state = await worker_event.wait()
+    worker_event.clear()
+    await asyncio.wait([c.send(state) for c in connections if not c.is_bug])
+
+
+async def consumer_handler(websocket, path):
+    while True:
+        msg = await websocket.recv()
+        await dispatcher(msg, websocket)
+
+
+async def dispatcher(data, websocket):
+    try:
+        data = json.loads(data)
+    except:
+        logging.error('Error converting {} to json'.format(data))
+        return
+
+    kind = data.get('kind', None)
+    payload = data.get('payload', None)
+
+    logging.info('dispatching: {} {}'.format(kind, payload))
+    if kind == 'ping':
+        update_heartbeat(websocket)
+        await websocket.send('pong')
+
+    elif kind == 'create':
+        bug = bug_factory(**payload)
+        bugs.add(bug)
+        websocket.bug_pk = bug['pk']
+        msg = json.dumps({'id': bug['pk']})
+        await websocket.send(msg)
+
+    elif kind == 'ding':
+        for b in bugs:
+            if b['pk'] == websocket.bug_pk:
+                b['to_ding'] = True
+
+
+async def handler(websocket, path):
+    global connections
+    if path == '/':
+        websocket.is_bug = True
+    elif path == '/Petri':
+        websocket.is_bug = False
+    connections.add(websocket)
+
+    try:
+        consumer_task = asyncio.ensure_future(consumer_handler(websocket))
+        producer_task = asyncio.ensure_future(producer_handler(websocket))
+
+        done, pending = await asyncio.wait(
+            [consumer_task, producer_task],
+            return_when=asyncio.FIRST_COMPLETED, )
+    except:
+        connections.remove(websocket)
+        if websocket.is_bug:
+            for b in bugs:
+                if b['pk'] == websocket.bug_pk:
+                    bugs.remove(b)
+
+
 class MainServer(threading.Thread):
     def __init__(self, worker, loop, pool, q):
         threading.Thread.__init__(self)
@@ -183,6 +324,11 @@ class MainServer(threading.Thread):
             petri_state = self.state_queue.get()
             self.broadcast_state(petri_state)
 
+    async def producer(self):
+        while True:
+            petri_state = self.state.queue.get()
+            return petri_state
+
     async def handler(self, websocket, path):
         websocket.agent = None
         if path == '/':
@@ -192,7 +338,7 @@ class MainServer(threading.Thread):
             websocket.is_agent = False
             self.pool.add(websocket)
         else:
-            print('Error: Incorrect path {}'.format(path))
+            logging.error('Error: Incorrect path {}'.format(path))
             return
         try:
             while True:
@@ -215,6 +361,7 @@ class MainServer(threading.Thread):
 
     def unicast(self, websocket, data):
         if not websocket.open:
+            logging.info('Closing websocket')
             self.pool.remove(websocket)
             return
 
@@ -222,6 +369,7 @@ class MainServer(threading.Thread):
         try:
             asyncio.run_coroutine_threadsafe(coro, self.loop)
         except:
+            logging.error('ERROR in sending')
             self.pool.remove(websocket)
             websocket.close()
 
@@ -235,6 +383,7 @@ class MainServer(threading.Thread):
         kind = data.get('kind', None)
         payload = data.get('payload', None)
 
+        logging.info('dispatching: {} {}'.format(kind, payload))
         if kind == 'ping':
             update_heartbeat(websocket)
             self.unicast(websocket, 'pong')
@@ -271,9 +420,10 @@ def main(midi_worker_pipe):
 
 def run_as_standalone():
     from ..modules.midi_worker import MidiWorker
-    from ..instruments.four_by_four import instruments
+    # from ..instruments.four_by_four import instruments
     import multiprocessing as mp
 
+    instruments = {}
     p_r, p_w = mp.Pipe(duplex=False)
     midi_worker = MidiWorker(p_r, instruments)
 

@@ -3,7 +3,29 @@ body {
 
 }
 
-g.bug circle {
-  stroke: green;
-  fill: green;
+
+.st0{stroke-width:0.5;stroke-miterlimit:10;}
+
+.rot > g{
+  transform-origin: center;
+  animation: wiggle 0.1s 2;
+}
+
+g.buggy {
+  transform-origin: center;
+}
+
+@keyframes ckw {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes wiggle {
+  0% {transform:rotate(3deg);}
+  50% {transform:rotate(-3deg);}
+  100% {transform:rotate(3deg);}
 }

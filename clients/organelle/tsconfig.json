@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es5",
+        "removeComments": true,
+        "outDir": "./dist",
+        "preserveConstEnums": true
+    },
+    "files": [
+        "src/main.ts"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
+}

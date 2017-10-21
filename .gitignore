@@ -4,3 +4,4 @@ yotta_targets
 __pycache__
 .#*
 elm-stuff
+node_modules
