@@ -144,14 +144,10 @@ function die() {
   timer.stop();
   ws.send(JSON.stringify({kind: 'die'}));
   State.mode = 0;
-  selectBugKind(0);
-  selectPitch(0);
   gotoCreationScreen();
 }
 
 function gotoCreationScreen() {
-  selectBugKind(0);
-  selectPitch(0);
   d3.select('#controller').style('display', 'none');
   d3.select('#creation').style('display', 'block');
 }
