@@ -93,9 +93,9 @@ function drawBugSelector() {
   $('#bug-options').children().removeClass('selected');
   $('#bug-' + Bug.kind).addClass('selected');
 
-  d3.select('#bug-0 svg').html(OCTO_BUG);
-  d3.select('#bug-1 svg').html(SPIRAL_BUG);
-  d3.select('#bug-2 svg').html(LONG_BUG);
+  d3.select('#bug-0 svg').classed('bug-svg', true).html(OCTO_BUG);
+  d3.select('#bug-1 svg').classed('bug-svg', true).html(SPIRAL_BUG);
+  d3.select('#bug-2 svg').classed('bug-svg', true).html(LONG_BUG);
 }
 
 
@@ -104,7 +104,7 @@ function drawBug() {
   const el = bugViewerEl
         .append('g')
         .attr('id', 'bug-viz')
-        .classed('bug', true);
+        .classed('bug-svg', true);
   switch (Bug.kind) {
   case 0:
     el.html(OCTO_BUG);

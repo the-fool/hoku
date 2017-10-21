@@ -4,18 +4,37 @@ var autoprefixer = require('autoprefixer');
 var cssnano = require('cssnano');
 var htmlmin = require('gulp-htmlmin');
 var babel = require('gulp-babel');
-require('babel-preset-es2015');
-gulp.task('js', () =>
-          gulp.src(['./*.js', '!gulpfile.js'])
-          .pipe(babel({
-            presets: ['es2015']
-          }))
-          .pipe(gulp.dest('./public'))
-         );
+var sass = require('gulp-sass');
 
-gulp.task('css', function () {
+require('babel-preset-es2015');
+
+
+gulp.task('sass', function() {
   var plugins = [
-    autoprefixer({browsers: ['last 5 versions']}),
+    autoprefixer({
+      browsers: ['last 5 versions']
+    }),
+    cssnano()
+  ];
+  return gulp.src('./**/*.scss')
+    .pipe(sass().on('error', sass.logError))
+    .pipe(postcss(plugins))
+    .pipe(gulp.dest('./public'));
+});
+
+gulp.task('js', function() {
+  gulp.src(['./*.js', '!gulpfile.js'])
+    .pipe(babel({
+      presets: ['es2015']
+    }))
+    .pipe(gulp.dest('./public'));
+});
+
+gulp.task('css', function() {
+  var plugins = [
+    autoprefixer({
+      browsers: ['last 5 versions']
+    }),
     cssnano()
   ];
   return gulp.src('./*.css')
@@ -23,4 +42,4 @@ gulp.task('css', function () {
     .pipe(gulp.dest('./public'));
 });
 
-gulp.task('build', ['css', 'js']);
+gulp.task('build', ['sass', 'js']);

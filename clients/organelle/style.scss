@@ -1,0 +1,151 @@
+@font-face {
+  font-family: euro-bold;
+  src: url('/lib/EurostileLTStd-BoldEx2.otf');
+}
+
+$cream: rgb(255,251,227);
+
+html, body {
+  margin: 0;
+  border: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  background: #04050c;
+  display: flex;
+  justify-content: center;
+  background-image: '../lib/organelle_bkgrnd.png';
+}
+
+body * {
+  box-sizing: border-box;
+}
+
+
+.pitch-box {
+  font-family: euro-bold;
+}
+
+main {
+  margin-top: 30px;
+  max-width: 500px;
+  width: 95%;
+}
+
+#bug-viz {
+  animation: ckw 1s 1;
+  transform-origin: center;
+}
+
+.bordered {
+  border-style: solid;
+  border-width: 2px;
+  border-color: $cream;
+  border-radius: 10px;
+}
+
+#ding-button {
+  transition: 0.1s fill;
+}
+
+#bug-viewer {
+  position: relative;
+  height: 400px;
+  width: 90%;
+  padding: 15px;
+  margin-right: auto;
+  margin-left: 2%;
+  border-color:rgb(128,203,196);
+  border-style: solid;
+  border-radius: 5px;
+  border-width: 2px;
+}
+
+.bug-svg {
+  polygon, path {
+    stroke: $cream;
+    fill: none;
+  }
+
+  circle {
+    fill: $cream;
+  }
+}
+
+
+#deploy-button {
+  width: 70px;
+  height: 70px;
+  color: $cream;
+  padding: 7px 16px;
+  font-size: 45px;
+  line-height: 1.33;
+  border: 0;
+  background: rgb(128,203,196);
+  border-radius: 35px;
+  position: absolute;
+  top: 40%;
+  right: -38px;
+}
+
+#controls {
+  width: 100%;
+}
+
+#controller {
+  width: 100%;
+  display: none;
+}
+#pitch-glyph, #bug-glyph {
+  padding: 15px 10px 0
+}
+#bug-selector,
+#pitch-selector {
+  width: 100%;
+  margin-top: 30px;
+}
+#bug-options > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#bug-selector > div {
+  height: 70px;
+}
+
+#bug-options > div.selected,
+.pitch-box.selected {
+  background: rgb(128,203,196);
+}
+
+
+#bug-glyph, #bug-options > div {
+  width: 70px;
+}
+
+#pitch-selector > div {
+  height: 70px;
+}
+
+#pitch-selector .pitch-box {
+  font-family: euro-bold;
+  height: 70px;
+  border: 1px solid $cream;
+  flex: 1;
+  margin: 0 2px;
+  color: $cream;
+  padding: 3px;
+  text-transform: uppercase;
+}
+
+@keyframes ckw {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(720deg);
+  }
+}
