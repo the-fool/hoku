@@ -100,7 +100,7 @@ function drawBugSelector() {
 
 
 function drawBug() {
-  bugViewerEl.select('g.bug').remove();
+  bugViewerEl.select('g.bug-svg').remove();
   const el = bugViewerEl
         .append('g')
         .attr('id', 'bug-viz')

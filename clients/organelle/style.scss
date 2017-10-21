@@ -4,6 +4,7 @@
 }
 
 $cream: rgb(255,251,227);
+$teal: rgb(128,203,196);
 
 html, body {
   margin: 0;
@@ -57,10 +58,25 @@ main {
   padding: 15px;
   margin-right: auto;
   margin-left: 2%;
-  border-color:rgb(128,203,196);
+  border-color: $teal;
   border-style: solid;
   border-radius: 5px;
   border-width: 2px;
+
+
+  #deploy-button {
+    width: 70px;
+    height: 70px;
+    color: $cream;
+    font-size: 45px;
+    line-height: 1.33;
+    border: 0;
+    background: $teal;
+    border-radius: 35px;
+    position: absolute;
+    top: 40%;
+    right: -38px;
+  }
 }
 
 .bug-svg {
@@ -75,21 +91,6 @@ main {
 }
 
 
-#deploy-button {
-  width: 70px;
-  height: 70px;
-  color: $cream;
-  padding: 7px 16px;
-  font-size: 45px;
-  line-height: 1.33;
-  border: 0;
-  background: rgb(128,203,196);
-  border-radius: 35px;
-  position: absolute;
-  top: 40%;
-  right: -38px;
-}
-
 #controls {
   width: 100%;
 }
@@ -98,14 +99,17 @@ main {
   width: 100%;
   display: none;
 }
+
 #pitch-glyph, #bug-glyph {
   padding: 15px 10px 0
 }
+
 #bug-selector,
 #pitch-selector {
   width: 100%;
   margin-top: 30px;
 }
+
 #bug-options > div {
   display: flex;
   align-items: center;
