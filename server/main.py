@@ -2,7 +2,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib as GObject
 
 from .instruments.four_by_four import instruments
-from .web_servers import run_ws_server, run_http_server
+from .web_servers import run_ws_server, run_http_server, ws_server_bugs
 from .microbit import MyMicrobit
 from .modules import Sequencer, Metronome, MidiWorker
 from .web_clients import MetaBalls, particles_cb, PolySequencer
@@ -107,6 +107,7 @@ def run():
     #
 
     processes = [(run_ws_server, (ws_server_pipe_r, behaviors)),
+                 (ws_server_bugs, (midi_worker_pipe_w,))
                  (metaball.start, ()),
                  (metronome.loop, ()),
                  (run_http_server, ()),

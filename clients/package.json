@@ -10,6 +10,7 @@
     "cssnano": "^3.10.0",
     "gulp": "^3.9.1",
     "gulp-babel": "^7.0.0",
+    "gulp-hash-filename": "^1.2.0",
     "gulp-htmlmin": "^3.0.0",
     "gulp-postcss": "^7.0.0",
     "gulp-sass": "^3.1.0",

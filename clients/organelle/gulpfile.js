@@ -3,20 +3,19 @@ var gulp = require('gulp');
 var autoprefixer = require('autoprefixer');
 var cssnano = require('cssnano');
 var htmlmin = require('gulp-htmlmin');
-const gulp = require('gulp');
-const babel = require('gulp-babel');
-
+var babel = require('gulp-babel');
+require('babel-preset-es2015');
 gulp.task('js', () =>
-          gulp.src('./*.js')
+          gulp.src(['./*.js', '!gulpfile.js'])
           .pipe(babel({
-            presets: ['env']
+            presets: ['es2015']
           }))
           .pipe(gulp.dest('./public'))
          );
 
 gulp.task('css', function () {
   var plugins = [
-    autoprefixer({browsers: ['last 1 version']}),
+    autoprefixer({browsers: ['last 5 versions']}),
     cssnano()
   ];
   return gulp.src('./*.css')
@@ -24,4 +23,4 @@ gulp.task('css', function () {
     .pipe(gulp.dest('./public'));
 });
 
-gulp.task('build', ['css']);
+gulp.task('build', ['css', 'js']);

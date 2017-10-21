@@ -1,6 +1,6 @@
 @font-face {
   font-family: euro-bold;
-  src: url('../lib/EurostileLTStd-BoldEx2.otf');
+  src: url('/lib/EurostileLTStd-BoldEx2.otf');
 }
 
 html, body {

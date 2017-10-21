@@ -5,6 +5,8 @@ let controlsEl,
     bugViewerEl,
     controllerEl;
 
+let timer;
+
 const hn = window.location.hostname;
 
 let ws = new WebSocket(`ws://${hn}:7700`);
@@ -141,19 +143,19 @@ function gotoGameState() {
   controller.style('display', 'block');
 
   const length = 45 * 1000;
-  const t = d3.timer(function(elapsed) {
+  timer = d3.timer(function(elapsed) {
     if (elapsed > length) {
-      t.stop();
       die();
     }
     else {
       const newDegree = elapsed / (length) * 360;
       d3.select('#radial-path').attr('d', arcTo(newDegree));
     }
-  }, 150);
+  }, 0);
 }
 
 function die() {
+  timer.stop();
   ws.send(JSON.stringify({kind: 'die'}));
   State.mode = 0;
   gotoCreationScreen();
@@ -182,6 +184,15 @@ function drawController() {
           r: 30,
           fill: 'rgb(255,251,227)'
         });
+  const dieButton = controllerEl
+        .append('circle')
+        .attrs({
+          id: 'die-button',
+          cx: 50,
+          cy: 130,
+          r: 15,
+          fill: 'rgb(181,16,19)'
+        });
   const radialTimer = controllerEl
         .append('path')
         .attrs({
@@ -192,6 +203,7 @@ function drawController() {
           'stroke-width': '3px'
         });
   bigButton.on('click', ding);
+  dieButton.on('click', die);
 }
 
 function ding() {
@@ -223,7 +235,7 @@ function setup() {
     .attr('transform', 'translate(220, 15)');
 
   const bv = d3.select('#bug-viewer');
-  bvBox = bv.node().getBoundingClientRect();
+  const bvBox = bv.node().getBoundingClientRect();
   bugViewerEl = bv.select('svg')
     .attr('height', bvBox.width - 30)
     .attr('width', bvBox.width - 30);
