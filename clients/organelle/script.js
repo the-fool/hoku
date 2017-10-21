@@ -38,18 +38,6 @@ const State = {
 
 
 
-
-function drawKind() {
-  kindEl.select('#kind-control').remove();
-  let el;
-  if (Bug.kind === 0)
-    el = kindEl.append('rect').attr('width', '30').attr('height', '30');
-  if (Bug.kind === 1)
-    el = kindEl.append('circle').attr('r', '15');
-
-  el.attr('id', 'kind-control');
-}
-
 function drawPitch() {
   pitchEl.select('#pitch-control').remove();
   pitchEl.append('text').attr('id', 'pitch-control').text(pitch);
@@ -63,7 +51,7 @@ function handlers() {
     e.preventDefault();
     const id = $(this).attr('id').split('-')[1];
     console.log(id);
-    selectBugKind(id);
+    selectBugKind(+id);
   });
 
   $('#pitches').children().on('click touchstart', function(e) {
@@ -85,18 +73,17 @@ function drawPitchSelector() {
 
 function selectBugKind(id) {
   Bug.kind = +id;
-  drawBugSelector();
+  $('#bug-options').children().removeClass('selected');
+  $('#bug-' + Bug.kind).addClass('selected');
   drawBug();
 }
 
 function drawBugSelector() {
-  $('#bug-options').children().removeClass('selected');
-  $('#bug-' + Bug.kind).addClass('selected');
-
   d3.select('#bug-0 svg').classed('bug-svg', true).html(OCTO_BUG);
   d3.select('#bug-1 svg').classed('bug-svg', true).html(SPIRAL_BUG);
   d3.select('#bug-2 svg').classed('bug-svg', true).html(LONG_BUG);
 }
+
 
 function drawBug() {
   bugViewerEl.select('g.bug-svg').remove();
@@ -157,12 +144,14 @@ function die() {
   timer.stop();
   ws.send(JSON.stringify({kind: 'die'}));
   State.mode = 0;
+  selectBugKind(0);
+  selectPitch(0);
   gotoCreationScreen();
-  Bug.kind = 0;
-  Bug.pitch = 0;
 }
 
 function gotoCreationScreen() {
+  selectBugKind(0);
+  selectPitch(0);
   d3.select('#controller').style('display', 'none');
   d3.select('#creation').style('display', 'block');
 }
@@ -245,6 +234,8 @@ function setup() {
   drawPitchSelector();
   drawBugSelector();
   drawController();
+  selectBugKind(0);
+  selectPitch(0);
   verticalize();
   handlers();
 }

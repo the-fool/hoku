@@ -3,6 +3,20 @@
   src: url('/lib/EurostileLTStd-BoldEx2.otf');
 }
 
+@font-face {
+  font-family: fa;
+  src: url('/lib/FontAwesome.otf');
+}
+.fa {
+  font-family: fa;
+  display:inline-block;
+  font:normal normal normal 14px/1 fa;
+  font-size:inherit;
+  text-rendering:auto;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale
+}
+.fa-plus:before{content:"\f067"}
 $cream: rgb(255,251,227);
 $teal: rgb(128,203,196);
 
@@ -57,8 +71,8 @@ main {
 #bug-viewer {
   position: relative;
   height: 400px;
-  width: 90%;
-  padding: 15px;
+  width: 88%;
+  padding: 15px 30px 15px 15px;
   margin-right: auto;
   margin-left: 2%;
   border-color: $teal;
@@ -72,14 +86,18 @@ main {
   }
 
   #deploy-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: $touch-box-size;
     height: $touch-box-size;
     color: $cream;
-    font-size: 45px;
-    line-height: 1.33;
+    font-size: 24px;
+    cursor: pointer;
+    -webkit-appearance: none;
     border: 0;
     background: $teal;
-    border-radius: $touch-box-size / 2;
+    border-radius: 50%;
     position: absolute;
     top: 40%;
     right: -38px;
