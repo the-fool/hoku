@@ -152,8 +152,6 @@ function gotoCreationScreen() {
   d3.select('#creation').style('display', 'block');
 }
 
-
-
 function arcTo(x) {
   return describeArc(50, 50, 40, x, 360);
 }

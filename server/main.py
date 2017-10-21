@@ -6,6 +6,7 @@ from .web_servers import run_ws_server, run_http_server, ws_server_bugs
 from .microbit import MyMicrobit
 from .modules import Sequencer, Metronome, MidiWorker
 from .web_clients import MetaBalls, particles_cb, PolySequencer
+from .util import custom_domain_to_midi
 
 import multiprocessing as mp
 import sys
@@ -59,8 +60,8 @@ def run():
     metronome = Metronome(pipes=metronome_write_pipes)
 
     mono_sequencer_msgs = [
-        ('minilogue_1', 'beat_on', 'beat_off'),
-        ('minilogue_2', 'beat_on', 'beat_off')
+       # ('minilogue_1', 'beat_on', 'beat_off'),
+       # ('minilogue_2', 'beat_on', 'beat_off')
     ]
 
     mono_sequencer = Sequencer(
@@ -107,16 +108,17 @@ def run():
     #
 
     processes = [(run_ws_server, (ws_server_pipe_r, behaviors)),
-                 (ws_server_bugs, (midi_worker_pipe_w,))
-                 (metaball.start, ()),
-                 (metronome.loop, ()),
-                 (run_http_server, ()),
-                 (midi_worker.start_consuming, ()),
-                 (mono_sequencer.start, ()),
-                 (poly_sequencer.start, ())]  # yapf: disable
+                 (ws_server_bugs, (midi_worker_pipe_w,)),
+                 (metaball.start, []),
+                 (metronome.loop, []),
+                 (run_http_server, []),
+                 (midi_worker.start_consuming, []),
+                 (mono_sequencer.start, []),
+                 (poly_sequencer.start, [])]   # yapf: disable
 
     process_objs = [mp.Process(target=p[0], args=p[1]) for p in processes]
 
+    logging.info('Starting processes')
     for p in process_objs:
         p.start()
 
@@ -125,7 +127,8 @@ def run():
     #
 
     vozuz = microbit_init(MBIT_VOZUZ)
-    gupaz = microbit_init(MBIT_GUPAZ)
+    # gupaz = microbit_init(MBIT_GUPAZ)
+    gupaz = True
     if vozuz is None or gupaz is None:
         logging.error('Failed to find either vozuz or gupaz')
     else:
@@ -181,10 +184,11 @@ def vozuz_uart(l, data, sig):
     Callback routine for the vozuz mbit
     Vozuz is the colored rotating thing
     """
-    print(data.get('Value', None))
-    # val = int(''.join(chr(c) for c in data['Value']))
-    # val = abs(val)
-    # val = translate(val, 0, 180, 0, 127)
+    val = int(''.join(chr(c) for c in data['Value']))
+    val = abs(val)
+    print('unscaled value', val)
+    val = custom_domain_to_midi(val, 0, 180)
+    print('scaled value', val)
     # minilogue_1.cutoff(val)
 
 
@@ -197,9 +201,9 @@ def microbit_init(address):
     try:
         mbit = MyMicrobit(device_addr=address, adapter_addr=DONGLE_ADDR)
     except:
-        logging.debug('Failed to find mbit {}'.format(address))
+        logging.error('Failed to find mbit {}'.format(address))
         return None
     if not mbit.connect():
-        logging.debug('Failed to connect to {}'.format(address))
+        logging.error('Failed to connect to {}'.format(address))
         return None
     return mbit

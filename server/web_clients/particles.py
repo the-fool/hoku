@@ -12,7 +12,7 @@ def particles_cb(worker_pipe, instrument_name='minilogue_1'):
             'payload': [x]
         }, {
             'instrument_name': instrument_name,
-            'method': 'cutoff',
+            'method': 'resonance',
             'payload': [y]
         }]
 

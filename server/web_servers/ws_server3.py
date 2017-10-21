@@ -34,6 +34,8 @@ def bug_factory(kind, pitch):
         'joined': 0,
         'to_ding': True,
         'dinging': False,
+        'to_die': False,
+        'to_remove': False,
         'when_donged': 0,
         'duration': 0.5
     }
@@ -50,6 +52,8 @@ def bug_kind_to_instrument(kind):
         return 'minilogue_1'
     elif kind == 1:
         return 'minilogue_2'
+    elif kind == 2:
+        return 'nord'
 
 
 def random_pos():
@@ -58,15 +62,15 @@ def random_pos():
     return (x, y)
 
 
-
-
 def tick_bugs():
     global bugs
     global bug_pool_lock
 
     with bug_pool_lock:
         for agent in bugs:
-
+            if agent['to_remove']:
+                remove_bug(agent)
+                continue
             x = agent['x']
             y = agent['y']
 
@@ -79,8 +83,10 @@ def tick_bugs():
             v = agent['vel']
             d = agent['deg']
 
-            new_x = (v * math.sin(math.radians(d)) + agent['x']) % ARENA_SIZE[0]
-            new_y = (v * math.cos(math.radians(d)) + agent['y']) % ARENA_SIZE[1]
+            new_x = (
+                v * math.sin(math.radians(d)) + agent['x']) % ARENA_SIZE[0]
+            new_y = (
+                v * math.cos(math.radians(d)) + agent['y']) % ARENA_SIZE[1]
 
             if agent['vel'] > 0.2:
                 agent['vel'] -= (agent['vel'] - 0.1) * C_VELOCITY
@@ -97,8 +103,8 @@ def get_midi_events():
     global bug_pool_lock
 
     def needs_note_off(t, agent):
-        return agent['dinging'] and agent['when_donged'] < (
-            t - agent['duration'])
+        return (agent['to_die']) or (agent['dinging']
+                and agent['when_donged'] < (t - agent['duration']))
 
     def warrants_midi_event(t, agent):
         if not agent:
@@ -111,6 +117,13 @@ def get_midi_events():
 
     def to_msg(t, agent):
         def method_name(agent):
+            print(agent['to_die'])
+            if agent['to_die']:
+                
+                agent['to_remove'] = True
+                print('NOTE_OFF')
+                return 'note_off'
+
             if needs_note_off(t, agent):
                 agent['dinging'] = False
                 print('NOTE_OFF')
@@ -205,7 +218,9 @@ async def dispatcher(data, websocket):
         process_bug(websocket.bug_pk, ding_bug)
 
     elif kind == 'die':
-        process_bug(websocket.bug_pk, remove_bug)
+        print('bug dying')
+        logging.info('Bug dying')
+        process_bug(websocket.bug_pk, set_to_die)
 
 
 def process_bug(pk, cb):
@@ -216,6 +231,10 @@ def process_bug(pk, cb):
         for b in bugs:
             if b['pk'] == pk:
                 cb(b)
+
+
+def set_to_die(b):
+    b['to_die'] = True
 
 
 def remove_bug(b):

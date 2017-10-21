@@ -6,9 +6,12 @@ def scale(value, d_min, d_max, r_min, r_max):
     # Convert the left range into a 0-1 range (float)
     value_scaled = float(value - r_min) / float(r_span)
 
-    # Convert the 0-1 range into a value in the right range.
-    return int(d_min + (value_scaled * d_span))
+    return float(r_max - r_min) * (value - d_min) / (d_max - d_min) + r_min
 
 
 def cent_to_midi(value):
-    return scale(value, 0, 100, 0, 127)
+    return int(scale(value, 0, 100, 0, 127))
+
+
+def custom_domain_to_midi(value, domain_min, domain_max):
+    return int(scale(value, domain_min, domain_max, 0, 127))

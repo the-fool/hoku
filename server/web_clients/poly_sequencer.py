@@ -2,9 +2,9 @@ import multiprocessing
 
 
 class PolySequencer:
-    def __init__(self, clock_pipe, instrument_cb, notes=[]):
+    def __init__(self, clock_pipe, msg, notes=[]):
         self.notes = multiprocessing.Manager().list(notes)
-        self.cb = instrument_cb
+        self.msg = msg
         self.clock_pipe = clock_pipe
 
     def start(self):
