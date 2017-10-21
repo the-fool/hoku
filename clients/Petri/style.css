@@ -1,8 +1,50 @@
-body {
-  background: #04050c;
-
+html, body {
+  border: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
 }
 
+body {
+  background: #04050c;
+}
+
+#gradient {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  z-index: -1;
+  background: linear-gradient(215deg, #040021, #120000, #230116, #29020e, #1a0202);
+  background-size: 1000% 1000%;
+  -webkit-animation: gradient 51s ease infinite;
+  -moz-animation: gradient 51s ease infinite;
+  -o-animation: gradient 51s ease infinite;
+  animation: gradient 51s ease infinite;
+}
+@-webkit-keyframes gradient {
+  0%{background-position:99% 0%}
+  50%{background-position:2% 100%}
+  100%{background-position:99% 0%}
+}
+@-moz-keyframes gradient {
+  0%{background-position:99% 0%}
+  50%{background-position:2% 100%}
+  100%{background-position:99% 0%}
+}
+@-o-keyframes gradient {
+  0%{background-position:99% 0%}
+  50%{background-position:2% 100%}
+  100%{background-position:99% 0%}
+}
+@keyframes gradient {
+  0%{background-position:99% 0%}
+  50%{background-position:2% 100%}
+  100%{background-position:99% 0%}
+}
 
 .st0{stroke-width:0.5;stroke-miterlimit:10;}
 

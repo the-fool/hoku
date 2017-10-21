@@ -98,7 +98,9 @@ main {
   margin-top: 30px;
 }
 #bug-options > div {
-  padding: 5px 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #bug-selector > div {

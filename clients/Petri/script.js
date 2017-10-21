@@ -34,6 +34,7 @@ let frameCount = 0;
 function rotation(bug, frameCount) {
   return ((bug.rot_vel * 0.3 * frameCount) % 360);
 }
+
 function paintSVG() {
   frameCount = frameCount > 1000000 ? frameCount = 0 : frameCount + 1;
   bugs = g
@@ -63,7 +64,24 @@ function paintSVG() {
     })
     .classed('rot', b => b.dinging);
   bugs.exit()
-    .remove();
+    .classed('dying', true);
+
+  d3.selectAll('.dying').each(d => {
+    if (d.deathRatio <= 0) {
+      d3.select('#' + d.pk).remove();
+      return;
+    } else if (d.deathRatio === undefined) {
+      d.deathRatio = 1;
+      return;
+    } else {
+      d.deathRatio = d.deathRatio - (0.03);
+      return;
+    }
+  })
+    .attrs({
+      'fill-opacity': bug => bug.deathRatio,
+      'stroke-opacity': bug => bug.deathRatio
+    });
 }
 
 

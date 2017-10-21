@@ -7,8 +7,9 @@ import math
 import time
 import threading
 
+PADDING = 80
 bug_pool_lock = threading.Lock()
-ARENA_SIZE = (1200, 700)
+ARENA_SIZE = (1800, 900)
 
 connections = set()
 bugs = []
@@ -20,7 +21,7 @@ state_queue = asyncio.Queue()
 def bug_factory(kind, pitch):
     x, y = random_pos()
     return {
-        'pk': int((time.monotonic()) * 100),
+        'pk': 'pk{}'.format(int((time.monotonic()) * 100)),
         'kind': kind,
         'pitch': PITCH_TO_SCALE[pitch],
         'deg': random.randint(0, 360),
@@ -52,9 +53,11 @@ def bug_kind_to_instrument(kind):
 
 
 def random_pos():
-    x = random.randint(0, ARENA_SIZE[0])
-    y = random.randint(0, ARENA_SIZE[1])
+    x = random.randint(0 + PADDING, ARENA_SIZE[0] - PADDING)
+    y = random.randint(0 + PADDING, ARENA_SIZE[1] - PADDING)
     return (x, y)
+
+
 
 
 def tick_bugs():
@@ -63,17 +66,30 @@ def tick_bugs():
 
     with bug_pool_lock:
         for agent in bugs:
+
+            x = agent['x']
+            y = agent['y']
+
+            if x <= PADDING or x >= (ARENA_SIZE[0] - PADDING):
+                agent['deg'] = (180 + agent['deg']) % 360
+
+            if y <= PADDING or y >= (ARENA_SIZE[1] - PADDING):
+                agent['deg'] = (180 + agent['deg']) % 360
+
+            v = agent['vel']
+            d = agent['deg']
+
+            new_x = (v * math.sin(math.radians(d)) + agent['x']) % ARENA_SIZE[0]
+            new_y = (v * math.cos(math.radians(d)) + agent['y']) % ARENA_SIZE[1]
+
             if agent['vel'] > 0.2:
                 agent['vel'] -= (agent['vel'] - 0.1) * C_VELOCITY
             if agent['to_ding']:
                 agent['deg'] = (agent['deg'] + random.randint(45, 225)) % 360
                 agent['vel'] = DEFAULT_VELOCITY
 
-            v = agent['vel']
-            d = agent['deg']
-
-            agent['x'] = (v * math.cos(d) + agent['x']) % ARENA_SIZE[0]
-            agent['y'] = (v * math.sin(d) + agent['y']) % ARENA_SIZE[1]
+            agent['x'] = new_x
+            agent['y'] = new_y
 
 
 def get_midi_events():
