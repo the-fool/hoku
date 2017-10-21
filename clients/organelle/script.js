@@ -98,7 +98,6 @@ function drawBugSelector() {
   d3.select('#bug-2 svg').classed('bug-svg', true).html(LONG_BUG);
 }
 
-
 function drawBug() {
   bugViewerEl.select('g.bug-svg').remove();
   const el = bugViewerEl

@@ -5,7 +5,7 @@ var cssnano = require('cssnano');
 var htmlmin = require('gulp-htmlmin');
 var babel = require('gulp-babel');
 var sass = require('gulp-sass');
-
+require('gulp-watch');
 require('babel-preset-es2015');
 
 
@@ -40,6 +40,10 @@ gulp.task('css', function() {
   return gulp.src('./*.css')
     .pipe(postcss(plugins))
     .pipe(gulp.dest('./public'));
+});
+
+gulp.task('watch', function () {
+  gulp.watch(['./*.js', './*.scss', '!./gulpfile.js'], ['build']);
 });
 
 gulp.task('build', ['sass', 'js']);

@@ -6,6 +6,11 @@
 $cream: rgb(255,251,227);
 $teal: rgb(128,203,196);
 
+$main-top-margin: 30px;
+$border-width: 2px;
+$border-radius: 5px;
+$touch-box-size: 70px;
+
 html, body {
   margin: 0;
   border: 0;
@@ -29,22 +34,17 @@ body * {
   font-family: euro-bold;
 }
 
-main {
-  margin-top: 30px;
-  max-width: 500px;
-  width: 95%;
-}
-
-#bug-viz {
-  animation: ckw 1s 1;
-  transform-origin: center;
-}
-
 .bordered {
   border-style: solid;
-  border-width: 2px;
+  border-width: $border-width;
   border-color: $cream;
-  border-radius: 10px;
+  border-radius: $border-radius;
+}
+
+main {
+  margin-top: $main-top-margin;
+  max-width: 500px;
+  width: 95%;
 }
 
 #ding-button {
@@ -60,19 +60,23 @@ main {
   margin-left: 2%;
   border-color: $teal;
   border-style: solid;
-  border-radius: 5px;
-  border-width: 2px;
+  border-radius: $border-radius;
+  border-width: $border-width;
 
+  #bug-viz {
+    animation: ckw 1s 1;
+    transform-origin: center;
+  }
 
   #deploy-button {
-    width: 70px;
-    height: 70px;
+    width: $touch-box-size;
+    height: $touch-box-size;
     color: $cream;
     font-size: 45px;
     line-height: 1.33;
     border: 0;
     background: $teal;
-    border-radius: 35px;
+    border-radius: $touch-box-size / 2;
     position: absolute;
     top: 40%;
     right: -38px;
@@ -89,7 +93,6 @@ main {
     fill: $cream;
   }
 }
-
 
 #controls {
   width: 100%;
@@ -117,38 +120,42 @@ main {
 }
 
 #bug-selector > div {
-  height: 70px;
+  height: $touch-box-size;
 }
 
 #bug-options > div.selected,
 .pitch-box.selected {
-  background: rgb(128,203,196);
+  background: $teal;
 }
 
 
 #bug-glyph, #bug-options > div {
-  width: 70px;
+  width: $touch-box-size;
 }
 
-#pitch-selector > div {
-  height: 70px;
-}
+#pitch-selector {
+  > div {
+    height: $touch-box-size;
+  }
 
-#pitch-selector .pitch-box {
-  font-family: euro-bold;
-  height: 70px;
-  border: 1px solid $cream;
-  flex: 1;
-  margin: 0 2px;
-  color: $cream;
-  padding: 3px;
-  text-transform: uppercase;
+  .pitch-box {
+    @extend .bordered;
+
+    height: $touch-box-size;
+    font-family: euro-bold;
+    flex: 1;
+    margin: 0 2px;
+    color: $cream;
+    padding: 3px;
+    text-transform: uppercase;
+  }
 }
 
 @keyframes ckw {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(720deg);
   }
