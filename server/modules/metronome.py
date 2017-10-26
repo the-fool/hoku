@@ -1,5 +1,6 @@
 import time
 import logging
+import asyncio
 
 
 class Metronome:
@@ -23,19 +24,29 @@ class Metronome:
             sleep_offset = time.time() - t
 
 
-import asyncio
-
-
-async def metronome(qs, bpm_queue):
+async def metronome(qs, bpm_queue, loop):
     ts = 0
     bpm = 120
     steps = 4
     offset = 0
+
     while True:
         sleep_time = max(0, (60 / bpm / steps - offset))
-        ts += 1
         await asyncio.sleep(sleep_time)
-        async for q in qs:
+
+        # start timer
+        t = loop.time()
+
+        # monotonic timestamp increment
+        ts += 1
+
+        # send the 'tick' to all listeners
+        for q in qs:
             await q.put(ts)
-    if not bpm_queue.empty:
-        pass
+
+        # check if the bpm has changed
+        if not bpm_queue.empty:
+            bpm = await bpm_queue.get()
+
+        # calc offset
+        offset = loop.time() - t
