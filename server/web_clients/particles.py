@@ -8,7 +8,7 @@ def particles_cb(worker_pipe, instrument_name='minilogue_1'):
 
         tasks = [{
             'instrument_name': instrument_name,
-            'method': 'cutoff',
+            'method': 'eg_decay',
             'payload': [x]
         }, {
             'instrument_name': instrument_name,

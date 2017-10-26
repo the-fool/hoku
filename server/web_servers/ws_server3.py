@@ -14,7 +14,7 @@ ARENA_SIZE = (1800, 900)
 connections = set()
 bugs = []
 
-PITCH_TO_SCALE = [58, 60, 62, 63, 65, 67, 69, 70]
+PITCH_TO_SCALE = [60, 62, 64, 65, 67, 69, 71]
 state_queue = asyncio.Queue()
 
 

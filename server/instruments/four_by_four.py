@@ -6,7 +6,7 @@ MIDI_OUTPUTS = [
 ]
 
 instruments = {
-    'minilogue_1': Minilogue(MIDI_OUTPUTS[2]),
+    'minilogue_1': Minilogue(MIDI_OUTPUTS[0]),
     'minilogue_2': Minilogue(MIDI_OUTPUTS[1]),
-    'nord': NordElectro2(MIDI_OUTPUTS[0])
+    'nord': NordElectro2(MIDI_OUTPUTS[2])
 }

@@ -21,3 +21,21 @@ class Metronome:
                 pipe.send(self.ts)
             self.ts = self.ts + 1
             sleep_offset = time.time() - t
+
+
+import asyncio
+
+
+async def metronome(qs, bpm_queue):
+    ts = 0
+    bpm = 120
+    steps = 4
+    offset = 0
+    while True:
+        sleep_time = max(0, (60 / bpm / steps - offset))
+        ts += 1
+        await asyncio.sleep(sleep_time)
+        async for q in qs:
+            await q.put(ts)
+    if not bpm_queue.empty:
+        pass
