@@ -1,5 +1,5 @@
 from ..util import cent_to_midi
-
+import logging
 
 def particles_cb(worker_pipe, instrument_name='minilogue_1'):
     def do_it(data):
@@ -23,6 +23,8 @@ def particles_cb(worker_pipe, instrument_name='minilogue_1'):
 
 
 def particles_factory(midi_worker_q, instrument_name='minilogue_1'):
+    logging.info('Creating Particle client for {}'.format(instrument_name))
+
     async def ws_consumer(kind, payload, uuid):
         nonlocal midi_worker_q
         nonlocal instrument_name

@@ -30,7 +30,7 @@ def run_standalone():
 
     logging.basicConfig(
         level=logging.INFO,
-        format='%(relativeCreated)6d %(processName)s %(message)s')
+        format='%(relativeCreated)6d %(message)s')
 
     producers = {'test': test_prod_obs}
     consumers = [{'path': 'test', 'coro': test_consumer}]

@@ -24,7 +24,8 @@ def observable_factory():
         q = asyncio.Queue()
         subscriptions.append({'uuid': uuid, 'q': q})
 
-        # save the last emission for replay value
+        # add last emission for replay value
+        # this gets new subscribers up to speed on the current state!
         if last_emission is not None:
             await q.put(last_emission)
 
