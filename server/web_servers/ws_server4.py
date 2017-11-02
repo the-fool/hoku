@@ -75,8 +75,8 @@ def make_handler(consumers, producers):
         # drop the first char, which is a root slash
         path = path[1:]
 
-        logging.info('New connection: {} at {}'.format(websocket, path))
-        logging.info('Current # connections: {}'.format(len(connections)))
+        logging.info('WS Server: new connection -- {} at {}'.format(websocket, path))
+        logging.info('WS Server: Current # connections: {}'.format(len(connections)))
 
         consumer_task = asyncio.ensure_future(
             consumer_handler(websocket, path))
