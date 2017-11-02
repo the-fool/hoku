@@ -39,8 +39,8 @@ def observable_factory():
         if uuid is None:
             last_emission = msg
 
-        logging.info('Emitting {}'.format(msg))
-        logging.info('Num subs: {}'.format(len(subscriptions)))
+        logging.debug('Obs: emitting {}'.format(msg))
+        logging.debug('Obs: num subs: {}'.format(len(subscriptions)))
 
         for sub in subscriptions:
             if uuid is None or sub['uuid'] == uuid:
