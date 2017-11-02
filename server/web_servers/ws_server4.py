@@ -5,6 +5,20 @@ import logging
 import uuid
 
 
+def main(consumers, producers):
+    """
+    Main entrypoint
+
+    Producers is a hash map of {string: observable}
+    Consumers is a list of records {path: string, coro: coroutine}
+
+    The consumer coroutine takes (kind, payload, uuid) -- all strings
+    """
+    logging.info('Creating ws server handler')
+    return websockets.serve(
+        make_handler(consumers, producers), '0.0.0.0', 7700)
+
+
 def make_handler(consumers, producers):
     connections = set()
 
@@ -52,69 +66,35 @@ def make_handler(consumers, producers):
     async def handler(websocket, path):
         nonlocal connections
 
+        # assign a new uuid to the websocket object
         websocket.uuid = uuid.uuid4().hex
 
+        # add the connection
         connections.add(websocket)
 
         # drop the first char, which is a root slash
         path = path[1:]
 
         logging.info('New connection: {} at {}'.format(websocket, path))
-
         logging.info('Current # connections: {}'.format(len(connections)))
 
         consumer_task = asyncio.ensure_future(
             consumer_handler(websocket, path))
         producer_task = asyncio.ensure_future(
             producer_handler(websocket, path))
+
+        # These tasks will return once the WebSocket closes
+        # (or another uncaught exception is thrown)
         done, pending = await asyncio.wait(
             [consumer_task, producer_task],
             return_when=asyncio.FIRST_COMPLETED, )
 
+        # We should cancel the remaining tasks
         for task in pending:
             task.cancel()
+
         logging.info('Disconnecting: {}'.format(websocket))
         connections.remove(websocket)
         logging.info('Current # connections: {}'.format(len(connections)))
 
     return handler
-
-
-def main(consumers, producers):
-    logging.info('Creating ws server handler')
-    return websockets.serve(
-        make_handler(consumers, producers), '0.0.0.0', 7700)
-
-
-def run_standalone():
-    from ..observable import observable_factory
-    test_prod_obs, test_prod_emit = observable_factory()
-
-    async def test_producer_cb(payload):
-        payload += 1000
-        await test_prod_emit(json.dumps({'broadcast': payload}))
-
-    async def test_consumer(kind, payload, uuid):
-        print(kind, payload)
-        await test_prod_emit(
-            json.dumps({
-                'echo': kind,
-                'data': payload
-            }), uuid=uuid)
-        await asyncio.sleep(2)
-        await test_producer_cb(payload)
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(relativeCreated)6d %(processName)s %(message)s')
-
-    producers = {'test': test_prod_obs}
-    consumers = [{'path': 'test', 'coro': test_consumer}]
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(producers=producers, consumers=consumers))
-    loop.run_forever()
-
-
-if __name__ == '__main__':
-    run_standalone()
