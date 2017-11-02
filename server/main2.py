@@ -1,5 +1,4 @@
 import asyncio
-from .observable import observable_factory
 from .web_servers import ws_server_factory
 
 from .web_clients.clocker import clocker_factory
@@ -14,8 +13,6 @@ def main():
     logging.basicConfig(
         level=logging.INFO,
         format='%(relativeCreated)6d %(message)s')
-
-    metronome_obs_sub, metronome_obs_emit = observable_factory()
 
     midi_q, midi_worker_coro = midi_worker_factory({})
 
