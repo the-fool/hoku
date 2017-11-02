@@ -24,7 +24,7 @@ class Metronome:
             sleep_offset = time.time() - t
 
 
-async def metronome(qs, bpm_queue, loop):
+async def metronome(cbs, bpm_queue=None):
     ts = 0
     bpm = 120
     steps = 4
@@ -35,18 +35,18 @@ async def metronome(qs, bpm_queue, loop):
         await asyncio.sleep(sleep_time)
 
         # start timer
-        t = loop.time()
+        t = time.time()
 
         # monotonic timestamp increment
         ts += 1
 
         # send the 'tick' to all listeners
-        for q in qs:
-            await q.put(ts)
+        for cb in cbs:
+            await cb(ts)
 
         # check if the bpm has changed
-        if not bpm_queue.empty:
+        if bpm_queue and not bpm_queue.empty():
             bpm = await bpm_queue.get()
 
         # calc offset
-        offset = loop.time() - t
+        offset = time.time() - t

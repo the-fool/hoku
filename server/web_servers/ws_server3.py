@@ -104,7 +104,8 @@ def get_midi_events():
 
     def needs_note_off(t, agent):
         return (agent['to_die']) or (agent['dinging']
-                and agent['when_donged'] < (t - agent['duration']))
+                                     and agent['when_donged'] <
+                                     (t - agent['duration']))
 
     def warrants_midi_event(t, agent):
         if not agent:
@@ -119,7 +120,7 @@ def get_midi_events():
         def method_name(agent):
             print(agent['to_die'])
             if agent['to_die']:
-                
+
                 agent['to_remove'] = True
                 print('NOTE_OFF')
                 return 'note_off'
