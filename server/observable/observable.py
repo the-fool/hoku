@@ -3,9 +3,9 @@ import logging
 from uuid import uuid4
 
 
-def observable_factory():
+def observable_factory(starting_value=None):
     subscriptions = []
-    last_emission = None
+    last_emission = starting_value
 
     def make_dispose(uuid):
         def dispose():
