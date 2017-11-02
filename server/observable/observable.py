@@ -5,6 +5,7 @@ from uuid import uuid4
 
 def observable_factory():
     subscriptions = []
+    last_emission = None
 
     def make_dispose(uuid):
         def dispose():
@@ -14,17 +15,28 @@ def observable_factory():
 
         return dispose
 
-    def subscribe(uuid=None):
-        uuid = uuid if uuid is not None else uuid4().hex
-
+    async def subscribe(uuid=None):
         nonlocal subscriptions
+        nonlocal last_emission
+
+        uuid = uuid if uuid is not None else uuid4().hex
 
         q = asyncio.Queue()
         subscriptions.append({'uuid': uuid, 'q': q})
+
+        # save the last emission for replay value
+        if last_emission is not None:
+            await q.put(last_emission)
+
         return q, make_dispose(uuid)
 
     async def emit(msg, uuid=None):
+        nonlocal last_emission
         nonlocal subscriptions
+
+        # If the msg is a broadcast, store the most recent message
+        if uuid is None:
+            last_emission = msg
 
         logging.info('Emitting {}'.format(msg))
         logging.info('Num subs: {}'.format(len(subscriptions)))

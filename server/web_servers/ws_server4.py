@@ -29,11 +29,11 @@ def make_handler(consumers, producers):
         if producer_obs is None:
             return
 
-        producer_q, dispose = producer_obs(uuid=websocket.uuid)
+        producer_queue, dispose = await producer_obs(uuid=websocket.uuid)
 
         while True:
             try:
-                message = await producer_q.get()
+                message = await producer_queue.get()
                 logging.info('Going to send {}'.format(message))
                 await websocket.send(message)
             except:
