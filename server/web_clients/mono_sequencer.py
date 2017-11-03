@@ -23,8 +23,9 @@ def mono_sequencer_factory(notes):
         nonlocal notes
 
         if kind == 'change':
-            for i, x in payload:
+            for i, x in enumerate(payload):
                 set_list_item(notes, i, x)
+            del notes[len(payload):]
             msg = msg_maker(payload)
             await emit(msg)
 
