@@ -3,7 +3,8 @@ from .web_servers import ws_server_factory
 
 from .web_clients.clocker import clocker_factory
 from .web_clients.particles import particles_factory
-from .web_clients import metronome_changer_factory
+from .web_clients import metronome_changer_factory,\
+    mono_sequencer_factory as mono_seq_web_client_factory
 from .modules import metronome, midi_worker_factory, mono_sequencer_factory
 import logging
 
@@ -20,10 +21,13 @@ def main():
     # make mono-sequencer
     notes_1 = [-1] * 16  # the notes in the sequence, a bar of rests
     on_trigger_msgs_mono_1 = []  # the messages to be sent for each note
-    mono_seq_coro_1, mono_seq_1_metr_cb = mono_sequencer_factory(
+    mono_seq_1_metr_cb = mono_sequencer_factory(
         midi_worker_q=midi_q,
         notes=notes_1,
         on_trigger_msgs=on_trigger_msgs_mono_1)
+
+    mono_seq_obs, mono_seq_ws_consumer = mono_seq_web_client_factory(
+        notes_1)
 
     # make clocker
     clocker_obs, clocker_metr_cb, clocker_ws_consumer = clocker_factory()
@@ -47,17 +51,21 @@ def main():
     }, {
         'path': 'metronome_changer',
         'coro': metro_ws_consumer
+    }, {
+        'path': 'monosequencer',
+        'coro': mono_seq_ws_consumer
     }]
 
     ws_producers = {
         'clocker': clocker_obs,
+        'monosequencer': mono_seq_obs,
         'metronome_changer': metro_changer_obs
     }
 
     ws_server_coro = ws_server_factory(
         consumers=ws_consumers, producers=ws_producers)
 
-    coros = [ws_server_coro, metr_coro, mono_seq_coro_1]
+    coros = [ws_server_coro, metr_coro]
 
     loop = asyncio.get_event_loop()
 
