@@ -5,7 +5,7 @@ import logging
 import uuid
 
 
-def main(consumers, producers):
+def main(behaviors):
     """
     Main entrypoint
 
@@ -16,16 +16,15 @@ def main(consumers, producers):
     """
     port = 7700
     logging.info('Creating ws server handler at 0.0.0.0:{}'.format(port))
-    return websockets.serve(
-        make_handler(consumers, producers), '0.0.0.0', port)
+    return websockets.serve(make_handler(behaviors), '0.0.0.0', port)
 
 
-def make_handler(consumers, producers):
+def make_handler(behaviors):
     connections = set()
 
     async def producer_handler(websocket, path):
-        nonlocal producers
-        producer_obs = producers.get(path, None)
+        nonlocal behaviors
+        _, producer_obs = behaviors.get(path, (None, None))
 
         if producer_obs is None:
             return
@@ -41,13 +40,13 @@ def make_handler(consumers, producers):
                 dispose()
 
     async def consumer_handler(websocket, path):
-        nonlocal consumers
+        nonlocal behaviors
+        consumer_coro, _ = behaviors.get(path, (None, None))
 
-        filtered_consumers = [
-            c['coro'] for c in consumers if c['path'] == path
-        ]
-        logging.info(
-            'Consumers at path: {} -- {}'.format(path, filtered_consumers))
+        if consumer_coro is None:
+            return
+
+        logging.info('Consumer at path: {} -- {}'.format(path, consumer_coro))
         while True:
             msg = await websocket.recv()
 
@@ -61,8 +60,8 @@ def make_handler(consumers, producers):
             payload = data.get('payload', None)
 
             logging.info('Got: {} {}'.format(kind, payload))
-            for consumer in filtered_consumers:
-                await consumer(kind=kind, payload=payload, uuid=websocket.uuid)
+            await consumer_coro(
+                kind=kind, payload=payload, uuid=websocket.uuid)
 
     async def handler(websocket, path):
         nonlocal connections
@@ -76,8 +75,10 @@ def make_handler(consumers, producers):
         # drop the first char, which is a root slash
         path = path[1:]
 
-        logging.info('WS Server: new connection -- {} at {}'.format(websocket, path))
-        logging.info('WS Server: Current # connections: {}'.format(len(connections)))
+        logging.info(
+            'WS Server: new connection -- {} at {}'.format(websocket, path))
+        logging.info(
+            'WS Server: Current # connections: {}'.format(len(connections)))
 
         consumer_task = asyncio.ensure_future(
             consumer_handler(websocket, path))

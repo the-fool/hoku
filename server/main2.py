@@ -3,8 +3,11 @@ from .web_servers import ws_server_factory
 
 from .web_clients.clocker import clocker_factory
 from .web_clients.particles import particles_factory
+
 from .web_clients import metronome_changer_factory,\
-    mono_sequencer_factory as mono_seq_web_client_factory
+    mono_sequencer_factory as mono_seq_web_client_factory,\
+    color_mono_sequencer_factory as cms_factory
+
 from .modules import metronome, midi_worker_factory, mono_sequencer_factory
 import logging
 
@@ -12,13 +15,15 @@ starting_bpm = 120
 
 
 def main():
-
     logging.basicConfig(
         level=logging.DEBUG, format='%(relativeCreated)6d %(message)s')
 
     midi_q, midi_worker_coro = midi_worker_factory({})
 
-    # make mono-sequencer
+    # make COLOR_MONO_SEQUENCER
+    cms_obs, cms_ws_consumer, cms_metro_cb, cms_notes = cms_factory()
+
+    # make MONO_SEQUENCER
     notes_1 = [-1] * 16  # the notes in the sequence, a bar of rests
     on_trigger_msgs_mono_1 = []  # the messages to be sent for each note
     mono_seq_1_metr_cb = mono_sequencer_factory(
@@ -26,10 +31,15 @@ def main():
         notes=notes_1,
         on_trigger_msgs=on_trigger_msgs_mono_1)
 
-    mono_seq_obs, mono_seq_ws_consumer = mono_seq_web_client_factory(
-        notes_1)
+    on_trigger_msgs_mono_2 = []
+    mono_seq_2_metr_cb = mono_sequencer_factory(
+        midi_worker_q=midi_q,
+        notes=cms_notes,
+        on_trigger_msgs=on_trigger_msgs_mono_2)
 
-    # make clocker
+    mono_seq_obs, mono_seq_ws_consumer = mono_seq_web_client_factory(notes_1)
+
+    # make CLOCKER
     clocker_obs, clocker_metr_cb, clocker_ws_consumer = clocker_factory()
 
     # make particles
@@ -37,33 +47,23 @@ def main():
 
     # Set up metronome
     bpm_queue = asyncio.Queue()
-    metronome_cbs = [clocker_metr_cb, mono_seq_1_metr_cb]
+    metronome_cbs = [
+        clocker_metr_cb, mono_seq_1_metr_cb, mono_seq_2_metr_cb, cms_metro_cb
+    ]
     metr_coro = metronome(metronome_cbs, bpm_queue, starting_bpm)
     metro_changer_obs, metro_ws_consumer = metronome_changer_factory(
         bpm_queue, starting_bpm)
 
-    ws_consumers = [{
-        'path': 'clocker',
-        'coro': clocker_ws_consumer
-    }, {
-        'path': 'particles',
-        'coro': particles_ws_consumer
-    }, {
-        'path': 'metronome_changer',
-        'coro': metro_ws_consumer
-    }, {
-        'path': 'monosequencer',
-        'coro': mono_seq_ws_consumer
-    }]
-
-    ws_producers = {
-        'clocker': clocker_obs,
-        'monosequencer': mono_seq_obs,
-        'metronome_changer': metro_changer_obs
+    # hash of {path: (consumer, producer)}
+    ws_behaviors = {
+        'clocker': (clocker_ws_consumer, clocker_obs),
+        'particles': (particles_ws_consumer, None),
+        'metronome_changer': (metro_ws_consumer, metro_changer_obs),
+        'monosequencer': (mono_seq_ws_consumer, mono_seq_obs),
+        'colormonosequencer': (cms_ws_consumer, cms_obs)
     }
 
-    ws_server_coro = ws_server_factory(
-        consumers=ws_consumers, producers=ws_producers)
+    ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
 
     coros = [ws_server_coro, metr_coro]
 
