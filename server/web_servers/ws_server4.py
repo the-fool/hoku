@@ -14,9 +14,10 @@ def main(consumers, producers):
 
     The consumer coroutine takes (kind, payload, uuid) -- all strings
     """
-    logging.info('Creating ws server handler')
+    port = 7700
+    logging.info('Creating ws server handler at 0.0.0.0:{}'.format(port))
     return websockets.serve(
-        make_handler(consumers, producers), '0.0.0.0', 7700)
+        make_handler(consumers, producers), '0.0.0.0', port)
 
 
 def make_handler(consumers, producers):

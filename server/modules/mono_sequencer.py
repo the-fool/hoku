@@ -1,63 +1,59 @@
 import logging
+import asyncio
 
 
-async def mono_sequencer(midi_worker_q, on_trigger_msgs_q, clock_q, notes_q):
-    step = 0
-    off_note = 0
-    notes = []
-    on_trigger_msgs = []
+def mono_sequencer_factory(
+        midi_worker_q,
+        notes,
+        on_trigger_msgs, ):
 
-    logging.debug('Mono sequencer starting')
+    clock_q = asyncio.Queue()
 
-    while True:
-        # do some housekeeping first, while waiting for the next beat
+    async def metronome_cb(ts):
+        """
+        Passed to the metronome module as one of its callbacks
+        """
+        await clock_q.put(ts)
 
-        # first, do we need to add or remove note messages?
-        # this list of message schema are for instrument & method events
-        if not on_trigger_msgs_q.empty():
-            x = await on_trigger_msgs_q.get()
+    async def mono_sequencer_coro():
+        step = 0
+        off_note = 0
 
-            if x['action'] == 'add':
-                on_trigger_msgs.append(x['payload'])
+        logging.info('Mono sequencer starting with notes {}'.format(notes))
 
-            elif x['action'] == 'remove':
-                instrument_name_to_remove = x['payload']
-                on_trigger_msgs = [
-                    x for x in on_trigger_msgs
-                    if x[0] != instrument_name_to_remove
-                ]
+        while True:
+            # wait for the queue to send its monotonic timestamp
+            ts = await clock_q.get()
 
-        # are the notes any different
-        if not notes_q.empty():
-            notes = await notes_q.get()
+            if len(notes) == 0:
+                continue
 
-        # wait for the queue to send its monotonic timestamp
-        ts = await clock_q.get()
+            step = ts % len(notes)
 
-        step = ts % len(notes)
+            note = notes[step]
 
-        note = notes[step]
+            # when note is == 0, hold
+            # when note is < 0, rest
 
-        # when note is == 0, hold
-        # when note is < 0, rest
+            # we either have a note, or a rest -- do note off!
+            if note is not 0:
+                for msg in on_trigger_msgs:
+                    task = {
+                        'instrument_name': msg[0],
+                        'method': msg[2],
+                        'payload': [off_note, step]
+                    }
+                    await midi_worker_q.put(task)
 
-        # we either have a note, or a rest -- do note off!
-        if note is not 0:
-            for msg in on_trigger_msgs:
-                task = {
-                    'instrument_name': msg[0],
-                    'method': msg[2],
-                    'payload': [off_note, step]
-                }
-                await midi_worker_q.put(task)
+            # we have a note -- play it!
+            if note > 0:
+                off_note = note
+                for msg in on_trigger_msgs:
+                    task = {
+                        'instrument_name': msg[0],
+                        'method': msg[1],
+                        'payload': [note, step]
+                    }
+                    await midi_worker_q.put(task)
 
-        # we have a note -- play it!
-        if note > 0:
-            off_note = note
-            for msg in on_trigger_msgs:
-                task = {
-                    'instrument_name': msg[0],
-                    'method': msg[1],
-                    'payload': [note, step]
-                }
-                await midi_worker_q.put(task)
+    return mono_sequencer_coro(), metronome_cb

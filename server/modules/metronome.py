@@ -9,7 +9,7 @@ class Metronome:
         self.bpm = bpm
         self.pipes = pipes
         self.steps = steps
-        logging.debug(
+        logging.info(
             "Metronome starting: BPM {}, STEPS {}".format(bpm, steps))
 
     def loop(self):
@@ -24,11 +24,12 @@ class Metronome:
             sleep_offset = time.time() - t
 
 
-async def metronome(cbs, bpm_queue=None):
+async def metronome(cbs, bpm_queue, bpm=120):
     ts = 0
-    bpm = 120
     steps = 4
     offset = 0
+
+    logging.info('Creating Metronome at bpm {} - steps {}'.format(bpm, steps))
 
     while True:
         sleep_time = max(0, (60 / bpm / steps - offset))
