@@ -14,8 +14,8 @@ class ColorMonoSequencer:
         return json.dumps({
             'action': 'state',
             'payload': {
-                'rhythm': self.note_rhythm,
-                'pitches': self.note_pitches
+                'rhythm': self.rhythm,
+                'pitches': self.pitches
             }
         })
 
