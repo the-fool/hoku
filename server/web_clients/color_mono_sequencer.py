@@ -2,6 +2,58 @@ from server.observable import observable_factory
 import json
 
 
+class ColorMonoSequencer:
+    def __init__(self, pitches=(60, 60, 60, 60), length=16):
+        self.pitches = pitches
+        self.length = length
+        self.rhythm = [-1] * length
+        self.real_notes = [-1] * length
+        self.obs, self.emit = observable_factory(self.msg_maker())
+
+    def msg_maker(self):
+        return json.dumps({
+            'action': 'state',
+            'payload': {
+                'rhythm': self.note_rhythm,
+                'pitches': self.note_pitches
+            }
+        })
+
+    def update_notes(self):
+        for i, n in enumerate(self.rhythm):
+            # 0 and -1 are special cases (not mapped)
+            val = self.pitches[n] if n > 0 else n
+            self.real_notes[i] = val
+
+    async def metro_cb(self, ts):
+        rhythm_index = ts % self.length
+        note_index = self.rhythm[rhythm_index]
+        msg = json.dumps({
+            'action': 'beat',
+            'payload': {
+                'rhythm_index': rhythm_index,
+                'note_index': note_index
+            }
+        })
+        await self.emit(msg)
+
+    async def ws_consumer(self, kind, payload, uuid):
+        index = payload['index']
+        value = payload['value']
+
+        if kind == 'pitch':
+            self.pitches[index] = value
+
+        elif kind == 'rhythm':
+            self.rhythm[index] = value
+        else:
+            # unknown
+            return
+
+        self.update_notes()
+        await self.emit(self.msg_maker())
+
+
 def color_mono_sequencer_factory(length=16):
     def msg_maker():
         return json.dumps({
