@@ -2,6 +2,7 @@ from server.observable import observable_factory
 import json
 
 
+# OO implementation
 class ColorMonoSequencer:
     def __init__(self, pitches=(60, 60, 60, 60), length=16):
         self.pitches = pitches
@@ -38,14 +39,19 @@ class ColorMonoSequencer:
         await self.emit(msg)
 
     async def ws_consumer(self, kind, payload, uuid):
-        index = payload['index']
-        value = payload['value']
 
         if kind == 'pitch':
+            index = payload['index']
+            value = payload['value']
             self.pitches[index] = value
 
         elif kind == 'rhythm':
+            index = payload['index']
+            value = payload['value']
             self.rhythm[index] = value
+        elif kind == 'state':
+            # this one is OK -- it just passes through so as to receive the state
+            pass
         else:
             # unknown
             return
@@ -54,6 +60,7 @@ class ColorMonoSequencer:
         await self.emit(self.msg_maker())
 
 
+# Functional implementation
 def color_mono_sequencer_factory(length=16):
     def msg_maker():
         return json.dumps({
