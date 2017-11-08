@@ -1,0 +1,24 @@
+body {
+  padding-top: 30px;
+  background: black;
+}
+
+.notes {
+  border: 1px solid teal;
+  display: table;
+  margin: auto;
+}
+
+.note {
+  color: teal;
+  display: inline-block;
+  padding: 30px;
+  border: 1px solid white;
+  text-align: center;
+}
+
+.note:before {
+  content:'';
+  float:left;
+  padding-top:100%;
+}
