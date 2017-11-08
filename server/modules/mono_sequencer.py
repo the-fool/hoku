@@ -36,7 +36,7 @@ def mono_sequencer_factory(
                 task = {
                     'instrument_name': msg[0],
                     'method': msg[2],
-                    'payload': [off_note, step]
+                    'payload': [off_note]
                 }
                 await midi_worker_q.put(task)
 
@@ -47,7 +47,7 @@ def mono_sequencer_factory(
                 task = {
                     'instrument_name': msg[0],
                     'method': msg[1],
-                    'payload': [note, step]
+                    'payload': [note]
                 }
                 await midi_worker_q.put(task)
 

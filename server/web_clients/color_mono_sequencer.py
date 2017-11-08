@@ -4,11 +4,12 @@ import json
 
 # OO implementation
 class ColorMonoSequencer:
-    def __init__(self, pitches=(60, 60, 60, 60), length=16):
+    def __init__(self, pitches=[60, 60, 60, 60], rhythm=[-1] * 16):
         self.pitches = pitches
-        self.length = length
-        self.rhythm = [-1] * length
-        self.real_notes = [-1] * length
+        self.length = len(rhythm)
+        self.rhythm = rhythm
+        self.real_notes = rhythm[:]
+        self.update_notes()
         self.obs, self.emit = observable_factory(self.msg_maker())
 
     def msg_maker(self):
@@ -23,7 +24,7 @@ class ColorMonoSequencer:
     def update_notes(self):
         for i, n in enumerate(self.rhythm):
             # 0 and -1 are special cases (not mapped)
-            val = self.pitches[n] if n > 0 else n
+            val = self.pitches[n - 1] if n > 0 else n
             self.real_notes[i] = val
 
     async def metro_cb(self, ts):

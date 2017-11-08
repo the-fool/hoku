@@ -5,14 +5,15 @@ import asyncio
 def midi_worker_factory(instruments):
     q = asyncio.Queue()
 
-    async def midi_worker_coro(q):
+    async def midi_worker_coro():
         nonlocal instruments
+        nonlocal q
 
         logging.info('Midi Worker starting')
 
         while True:
             task = await q.get()
-
+            print("HERE with task", task)
             name = task.get('instrument_name', None)
             instrument = instruments.get(name, None)
             if not instrument:
@@ -30,4 +31,4 @@ def midi_worker_factory(instruments):
 
             method(*payload)
 
-    return q, midi_worker_coro
+    return q, midi_worker_coro()

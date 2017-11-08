@@ -1,4 +1,6 @@
 import asyncio
+
+from .instruments.four_by_four import instruments
 from .web_servers import ws_server_factory
 
 from .web_clients.clocker import clocker_factory
@@ -18,10 +20,10 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG, format='%(relativeCreated)6d %(message)s')
 
-    midi_q, midi_worker_coro = midi_worker_factory({})
+    midi_q, midi_worker_coro = midi_worker_factory(instruments)
 
     # make COLOR_MONO_SEQUENCER
-    cms = CMS()
+    cms = CMS(rhythm=[4,4,4,4, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
 
     # make MONO_SEQUENCER
     notes_1 = [-1] * 16  # the notes in the sequence, a bar of rests
@@ -31,7 +33,7 @@ def main():
         notes=notes_1,
         on_trigger_msgs=on_trigger_msgs_mono_1)
 
-    on_trigger_msgs_mono_2 = []
+    on_trigger_msgs_mono_2 = [('minilogue_1', 'note_on', 'note_off')]
     mono_seq_2_metr_cb = mono_sequencer_factory(
         midi_worker_q=midi_q,
         notes=cms.real_notes,
@@ -65,7 +67,7 @@ def main():
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
 
-    coros = [ws_server_coro, metr_coro]
+    coros = [ws_server_coro, metr_coro, midi_worker_coro]
 
     loop = asyncio.get_event_loop()
 
