@@ -1,6 +1,7 @@
 import asyncio
 
-#from .instruments.four_by_four import instruments
+# from .instruments.four_by_four import instruments
+
 from .web_servers import ws_server_factory
 
 from .web_clients.clocker import clocker_factory
@@ -12,7 +13,8 @@ from .web_clients import metronome_changer_factory,\
 
 from .modules import Metronome,\
     midi_worker_factory,\
-    mono_sequencer_factory
+    MonoSequencer
+
 import logging
 
 starting_bpm = 120
@@ -26,21 +28,16 @@ def main():
     midi_q, midi_worker_coro = midi_worker_factory(instruments)
 
     # make COLOR_MONO_SEQUENCER
-    cms = CMS(rhythm=[1, 0, 0, -1, -1, 2, -1, 4, -1, -1, -1, 3, 3, 3, 3, 3])
+    cms = CMS(rhythm=[-1] * 16)
 
     # make MONO_SEQUENCER
     notes_1 = [-1] * 16  # the notes in the sequence, a bar of rests
-    on_trigger_msgs_mono_1 = []  # the messages to be sent for each note
-    mono_seq_1_metr_cb = mono_sequencer_factory(
-        midi_worker_q=midi_q,
-        notes=notes_1,
-        on_trigger_msgs=on_trigger_msgs_mono_1)
+    on_beat_msgs_mono_1 = []  # the messages to be sent for each note
+    mono_seq_1 = MonoSequencer(midi_q, notes_1, on_beat_msgs_mono_1)
 
-    on_trigger_msgs_mono_2 = [('minilogue_1', 'note_on', 'note_off')]
-    mono_seq_2_metr_cb = mono_sequencer_factory(
-        midi_worker_q=midi_q,
-        notes=cms.real_notes,
-        on_trigger_msgs=on_trigger_msgs_mono_2)
+    on_beat_msgs_mono_2 = [('minilogue_1', 'note_on', 'note_off')]
+    mono_seq_2 = MonoSequencer(
+        midi_q, cms.real_notes, on_beat_msgs=on_beat_msgs_mono_2)
 
     mono_seq_obs, mono_seq_ws_consumer = mono_seq_web_client_factory(notes_1)
 
@@ -52,7 +49,7 @@ def main():
 
     # Set up metronome
     metronome_cbs = [
-        clocker_metr_cb, mono_seq_1_metr_cb, mono_seq_2_metr_cb, cms.metro_cb
+        clocker_metr_cb, mono_seq_1.on_beat, mono_seq_2.on_beat, cms.metro_cb
     ]
     metronome = Metronome(metronome_cbs, starting_bpm)
 
