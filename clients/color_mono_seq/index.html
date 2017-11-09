@@ -1,16 +1,27 @@
 <html>
-<link rel="stylesheet" href="./reboot.css" />
+<link rel="stylesheet" href="/lib/reboot.css" />
+<link rel="stylesheet" href="/lib/base.css" />
 <link rel="stylesheet" href="./style.css" />
 
 <body>
     <div></div>
     <script src="elm.js"></script>
     <script>
-        const websocketProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const websocketHost = `${websocketProtocol}//${location.host}/chat`;
-        Elm.Main.fullscreen({
+        var websocketProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+        var websocketHost = websocketProtocol + location.hostname;
+        var app = Elm.Main.fullscreen({
             websocketHost: websocketHost
         });
+
+     app.ports.beat.subscribe(function(i) {
+       if (i <= 0) { return; }
+       var e = document.getElementById('note-'+(i - 1));
+       if (!e) {
+         return;
+       }
+       e.classList.add('beat');
+       setTimeout(function() { e.classList.remove('beat');},50);
+     });
     </script>
 </body>
 

@@ -13,7 +13,6 @@ def midi_worker_factory(instruments):
 
         while True:
             task = await q.get()
-            print("HERE with task", task)
             name = task.get('instrument_name', None)
             instrument = instruments.get(name, None)
             if not instrument:

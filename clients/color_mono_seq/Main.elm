@@ -1,7 +1,7 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Html exposing (div, Html, text)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, id)
 import Html.Events exposing (onClick)
 import WebSocket
 import Json.Encode exposing (object, encode)
@@ -9,6 +9,14 @@ import Json.Decode exposing (int, field, list, Decoder, decodeString)
 import Json.Decode.Pipeline exposing (decode, required, optional, hardcoded)
 
 
+port beat : Int -> Cmd msg
+
+
+type alias Flags =
+    { websocketHost : String }
+
+
+main : Program Flags Model Msg
 main =
     Html.programWithFlags
         { init = init
@@ -18,87 +26,38 @@ main =
         }
 
 
-type alias Flags =
-    { websocketHost : String }
-
-
-host =
-    "127.0.0.1"
-
-
-url =
-    "ws://" ++ host ++ ":7700/colormonosequencer"
-
-
 
 -- MODEL
 
 
 type alias Model =
-    { notes : List Note
+    { notes : List PitchIndex
+    , wsurl : String
     }
+
+
+type alias PitchIndex =
+    Int
+
+
+numOctaves =
+    2
+
+
+numPitches =
+    7 * 2
 
 
 init : Flags -> ( Model, Cmd Msg )
 init fs =
-    ( Model [ Note Do, Note Re, Note Mi, Note Fa ], WebSocket.send url <| encode 0 getState )
+    let
+        url host =
+            host ++ ":7700/colormonosequencer"
 
-
-baseDo : Int
-baseDo =
-    60
-
-
-re =
-    baseDo + 2
-
-
-mi =
-    baseDo + 4
-
-
-fa =
-    baseDo + 5
-
-
-intToPitch : Int -> Pitch
-intToPitch x =
-    if x == baseDo then
-        Do
-    else if x == re then
-        Re
-    else if x == mi then
-        Mi
-    else
-        Fa
-
-
-pitchToInt : Pitch -> Int
-pitchToInt pitch =
-    case pitch of
-        Do ->
-            baseDo
-
-        Re ->
-            baseDo + 2
-
-        Mi ->
-            baseDo + 4
-
-        Fa ->
-            baseDo + 5
-
-
-type Pitch
-    = Do
-    | Re
-    | Mi
-    | Fa
-
-
-type alias Note =
-    { pitch : Pitch
-    }
+        wsurl =
+            Debug.log "url" (url fs.websocketHost)
+    in
+        ( Model [] wsurl, WebSocket.send wsurl <| encode 0 getStateWSMsg )
 
 
 
@@ -106,40 +65,48 @@ type alias Note =
 
 
 type Msg
-    = ChangeNote Int Pitch
-    | RcvState String
+    = ChangeNote Int PitchIndex
+    | RcvMsg String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ChangeNote i pitch ->
-            ( updateNotes i pitch model, WebSocket.send url <| encode 0 <| changePitchWSMsg i (pitchToInt pitch) )
+            ( updateNotes i pitch model, WebSocket.send model.wsurl <| encode 0 <| changePitchWSMsg i pitch )
 
-        RcvState str ->
-            ( decodeWSMsg str model, Cmd.none )
-
-
-cyclePitch : Pitch -> Pitch
-cyclePitch pitch =
-    if pitch == Do then
-        Re
-    else if pitch == Re then
-        Mi
-    else if pitch == Mi then
-        Fa
-    else if pitch == Fa then
-        Do
-    else
-        Do
+        RcvMsg wsmsg ->
+            onReceiveWSMsg wsmsg model
 
 
-updateNotes : Int -> Pitch -> Model -> Model
+onReceiveWSMsg : String -> Model -> ( Model, Cmd Msg )
+onReceiveWSMsg wsmsg model =
+    case decodeString (field "action" Json.Decode.string) wsmsg of
+        Ok "state" ->
+            ( updateState wsmsg model, Cmd.none )
+
+        Ok "beat" ->
+            let
+                cmd =
+                    case decodeString decodeBeatMsg wsmsg of
+                        Ok b ->
+                            beat b.payload.noteIndex
+
+                        _ ->
+                            Debug.crash "error decoding beat"
+            in
+                ( model, cmd )
+
+        _ ->
+            Debug.crash "unknow msg action"
+
+
+updateNotes : Int -> PitchIndex -> Model -> Model
 updateNotes index newPitch model =
     let
         newNote i note =
             if i == index then
-                { note | pitch = newPitch }
+                newPitch
             else
                 note
     in
@@ -152,7 +119,7 @@ updateNotes index newPitch model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    WebSocket.listen url RcvState
+    WebSocket.listen model.wsurl RcvMsg
 
 
 
@@ -164,24 +131,36 @@ view model =
     div [ class "container" ] [ viewNotes model.notes ]
 
 
-viewNotes : List Note -> Html Msg
+viewNotes : List PitchIndex -> Html Msg
 viewNotes notes =
     div [ class "notes" ] (List.indexedMap viewNote notes)
 
 
-viewNote : Int -> Note -> Html Msg
-viewNote i note =
+viewNote : Int -> PitchIndex -> Html Msg
+viewNote i pitchIndex =
     let
+        cyclePitch pitchIndex =
+            (pitchIndex + 1) % numPitches
+
+        noteId =
+            "note-" ++ (toString i)
+
         newPitch =
-            cyclePitch note.pitch
+            cyclePitch pitchIndex
     in
-        div [ class "note", onClick <| ChangeNote i newPitch ] [ text <| toString <| pitchToInt note.pitch ]
+        div
+            [ class "note"
+            , id noteId
+            , onClick <| ChangeNote i newPitch
+            ]
+            [ text <| toString <| pitchIndex ]
 
 
 
 -- COMMANDS
 
 
+changePitchWSMsg : Int -> Int -> Json.Encode.Value
 changePitchWSMsg index value =
     object
         [ ( "kind", Json.Encode.string "pitch" )
@@ -194,13 +173,18 @@ changePitchWSMsg index value =
         ]
 
 
+getStateWSMsg : Json.Encode.Value
+getStateWSMsg =
+    object [ ( "kind", Json.Encode.string "state" ) ]
+
+
 type alias BeatMsg =
     { payload : BeatMsgPayload
     }
 
 
 type alias BeatMsgPayload =
-    { rthythmIndex : Int
+    { rhythmIndex : Int
     , noteIndex : Int
     }
 
@@ -214,29 +198,6 @@ type alias StateMsgPayload =
 type alias StateMsg =
     { payload : StateMsgPayload
     }
-
-
-type WSMsg
-    = Beat
-    | State
-
-
-getState : Json.Encode.Value
-getState =
-    object [ ( "kind", Json.Encode.string "state" ) ]
-
-
-determineTypeOfWSMsg : String -> WSMsg
-determineTypeOfWSMsg msg =
-    case decodeString (field "action" Json.Decode.string) msg of
-        Ok "state" ->
-            State
-
-        Ok "beat" ->
-            Beat
-
-        _ ->
-            Debug.crash "Unexpected msg kind!"
 
 
 decodeBeatMsg : Decoder BeatMsg
@@ -263,34 +224,18 @@ decodeStateMsg =
             |> required "payload" payloadDecoder
 
 
-decodeWSMsg : String -> Model -> Model
-decodeWSMsg msg =
+updateState : String -> Model -> Model
+updateState msg =
     let
-        kind =
-            determineTypeOfWSMsg msg
-
-        updateBeat beat model =
-            model
-
         updateState newState model =
-            { model | notes = newState.payload.pitches |> List.map (intToPitch >> Note) }
+            { model | notes = newState.payload.pitches }
 
         payloadDecoder =
-            case kind of
-                State ->
-                    case decodeString decodeStateMsg msg of
-                        Ok msg ->
-                            updateState msg
+            case decodeString decodeStateMsg msg of
+                Ok msg ->
+                    updateState msg
 
-                        _ ->
-                            Debug.crash ""
-
-                Beat ->
-                    case decodeString decodeBeatMsg msg of
-                        Ok msg ->
-                            updateBeat msg
-
-                        _ ->
-                            Debug.crash ""
+                _ ->
+                    Debug.crash ""
     in
         payloadDecoder

@@ -23,7 +23,7 @@ def main():
     midi_q, midi_worker_coro = midi_worker_factory(instruments)
 
     # make COLOR_MONO_SEQUENCER
-    cms = CMS(rhythm=[4,4,4,4, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
+    cms = CMS(rhythm=[1, 0, 0, -1, -1, 2, -1, 4, -1, -1,-1, 3, 3, 3, 3, 3])
 
     # make MONO_SEQUENCER
     notes_1 = [-1] * 16  # the notes in the sequence, a bar of rests

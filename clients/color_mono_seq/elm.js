@@ -9291,7 +9291,7 @@ var _elm_lang$websocket$WebSocket$onSelfMsg = F3(
 	});
 _elm_lang$core$Native_Platform.effectManagers['WebSocket'] = {pkg: 'elm-lang/websocket', init: _elm_lang$websocket$WebSocket$init, onEffects: _elm_lang$websocket$WebSocket$onEffects, onSelfMsg: _elm_lang$websocket$WebSocket$onSelfMsg, tag: 'fx', cmdMap: _elm_lang$websocket$WebSocket$cmdMap, subMap: _elm_lang$websocket$WebSocket$subMap};
 
-var _user$project$Main$getState = _elm_lang$core$Json_Encode$object(
+var _user$project$Main$getStateWSMsg = _elm_lang$core$Json_Encode$object(
 	{
 		ctor: '::',
 		_0: {
@@ -9343,9 +9343,7 @@ var _user$project$Main$updateNotes = F3(
 	function (index, newPitch, model) {
 		var newNote = F2(
 			function (i, note) {
-				return _elm_lang$core$Native_Utils.eq(i, index) ? _elm_lang$core$Native_Utils.update(
-					note,
-					{pitch: newPitch}) : note;
+				return _elm_lang$core$Native_Utils.eq(i, index) ? newPitch : note;
 			});
 		return _elm_lang$core$Native_Utils.update(
 			model,
@@ -9353,43 +9351,46 @@ var _user$project$Main$updateNotes = F3(
 				notes: A2(_elm_lang$core$List$indexedMap, newNote, model.notes)
 			});
 	});
-var _user$project$Main$baseDo = 60;
-var _user$project$Main$re = _user$project$Main$baseDo + 2;
-var _user$project$Main$mi = _user$project$Main$baseDo + 4;
-var _user$project$Main$fa = _user$project$Main$baseDo + 5;
-var _user$project$Main$pitchToInt = function (pitch) {
-	var _p0 = pitch;
-	switch (_p0.ctor) {
-		case 'Do':
-			return _user$project$Main$baseDo;
-		case 'Re':
-			return _user$project$Main$baseDo + 2;
-		case 'Mi':
-			return _user$project$Main$baseDo + 4;
-		default:
-			return _user$project$Main$baseDo + 5;
-	}
-};
-var _user$project$Main$host = '127.0.0.1';
-var _user$project$Main$url = A2(
-	_elm_lang$core$Basics_ops['++'],
-	'ws://',
-	A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$host, ':7700/colormonosequencer'));
+var _user$project$Main$numPitches = 7 * 2;
+var _user$project$Main$numOctaves = 2;
+var _user$project$Main$beat = _elm_lang$core$Native_Platform.outgoingPort(
+	'beat',
+	function (v) {
+		return v;
+	});
 var _user$project$Main$Flags = function (a) {
 	return {websocketHost: a};
 };
-var _user$project$Main$Model = function (a) {
-	return {notes: a};
-};
-var _user$project$Main$Note = function (a) {
-	return {pitch: a};
+var _user$project$Main$Model = F2(
+	function (a, b) {
+		return {notes: a, wsurl: b};
+	});
+var _user$project$Main$init = function (fs) {
+	var url = function (host) {
+		return A2(_elm_lang$core$Basics_ops['++'], host, ':7700/colormonosequencer');
+	};
+	var wsurl = A2(
+		_elm_lang$core$Debug$log,
+		'url',
+		url(fs.websocketHost));
+	return {
+		ctor: '_Tuple2',
+		_0: A2(
+			_user$project$Main$Model,
+			{ctor: '[]'},
+			wsurl),
+		_1: A2(
+			_elm_lang$websocket$WebSocket$send,
+			wsurl,
+			A2(_elm_lang$core$Json_Encode$encode, 0, _user$project$Main$getStateWSMsg))
+	};
 };
 var _user$project$Main$BeatMsg = function (a) {
 	return {payload: a};
 };
 var _user$project$Main$BeatMsgPayload = F2(
 	function (a, b) {
-		return {rthythmIndex: a, noteIndex: b};
+		return {rhythmIndex: a, noteIndex: b};
 	});
 var _user$project$Main$decodeBeatMsg = function () {
 	var payloadDecoder = A3(
@@ -9430,56 +9431,117 @@ var _user$project$Main$decodeStateMsg = function () {
 		payloadDecoder,
 		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$decode(_user$project$Main$StateMsg));
 }();
-var _user$project$Main$Fa = {ctor: 'Fa'};
-var _user$project$Main$Mi = {ctor: 'Mi'};
-var _user$project$Main$Re = {ctor: 'Re'};
-var _user$project$Main$Do = {ctor: 'Do'};
-var _user$project$Main$init = function (fs) {
-	return {
-		ctor: '_Tuple2',
-		_0: _user$project$Main$Model(
-			{
-				ctor: '::',
-				_0: _user$project$Main$Note(_user$project$Main$Do),
-				_1: {
-					ctor: '::',
-					_0: _user$project$Main$Note(_user$project$Main$Re),
-					_1: {
-						ctor: '::',
-						_0: _user$project$Main$Note(_user$project$Main$Mi),
-						_1: {
-							ctor: '::',
-							_0: _user$project$Main$Note(_user$project$Main$Fa),
-							_1: {ctor: '[]'}
-						}
-					}
+var _user$project$Main$updateState = function (msg) {
+	var updateState = F2(
+		function (newState, model) {
+			return _elm_lang$core$Native_Utils.update(
+				model,
+				{notes: newState.payload.pitches});
+		});
+	var payloadDecoder = function () {
+		var _p0 = A2(_elm_lang$core$Json_Decode$decodeString, _user$project$Main$decodeStateMsg, msg);
+		if (_p0.ctor === 'Ok') {
+			return updateState(_p0._0);
+		} else {
+			return _elm_lang$core$Native_Utils.crashCase(
+				'Main',
+				{
+					start: {line: 234, column: 13},
+					end: {line: 239, column: 35}
+				},
+				_p0)('');
+		}
+	}();
+	return payloadDecoder;
+};
+var _user$project$Main$onReceiveWSMsg = F2(
+	function (wsmsg, model) {
+		var _p2 = A2(
+			_elm_lang$core$Json_Decode$decodeString,
+			A2(_elm_lang$core$Json_Decode$field, 'action', _elm_lang$core$Json_Decode$string),
+			wsmsg);
+		_v1_2:
+		do {
+			if (_p2.ctor === 'Ok') {
+				switch (_p2._0) {
+					case 'state':
+						return {
+							ctor: '_Tuple2',
+							_0: A2(_user$project$Main$updateState, wsmsg, model),
+							_1: _elm_lang$core$Platform_Cmd$none
+						};
+					case 'beat':
+						var cmd = function () {
+							var _p3 = A2(_elm_lang$core$Json_Decode$decodeString, _user$project$Main$decodeBeatMsg, wsmsg);
+							if (_p3.ctor === 'Ok') {
+								return _user$project$Main$beat(_p3._0.payload.noteIndex);
+							} else {
+								return _elm_lang$core$Native_Utils.crashCase(
+									'Main',
+									{
+										start: {line: 91, column: 21},
+										end: {line: 96, column: 62}
+									},
+									_p3)('error decoding beat');
+							}
+						}();
+						return {ctor: '_Tuple2', _0: model, _1: cmd};
+					default:
+						break _v1_2;
 				}
-			}),
-		_1: A2(
-			_elm_lang$websocket$WebSocket$send,
-			_user$project$Main$url,
-			A2(_elm_lang$core$Json_Encode$encode, 0, _user$project$Main$getState))
-	};
-};
-var _user$project$Main$intToPitch = function (x) {
-	return _elm_lang$core$Native_Utils.eq(x, _user$project$Main$baseDo) ? _user$project$Main$Do : (_elm_lang$core$Native_Utils.eq(x, _user$project$Main$re) ? _user$project$Main$Re : (_elm_lang$core$Native_Utils.eq(x, _user$project$Main$mi) ? _user$project$Main$Mi : _user$project$Main$Fa));
-};
-var _user$project$Main$cyclePitch = function (pitch) {
-	return _elm_lang$core$Native_Utils.eq(pitch, _user$project$Main$Do) ? _user$project$Main$Re : (_elm_lang$core$Native_Utils.eq(pitch, _user$project$Main$Re) ? _user$project$Main$Mi : (_elm_lang$core$Native_Utils.eq(pitch, _user$project$Main$Mi) ? _user$project$Main$Fa : (_elm_lang$core$Native_Utils.eq(pitch, _user$project$Main$Fa) ? _user$project$Main$Do : _user$project$Main$Do)));
-};
-var _user$project$Main$RcvState = function (a) {
-	return {ctor: 'RcvState', _0: a};
+			} else {
+				break _v1_2;
+			}
+		} while(false);
+		return _elm_lang$core$Native_Utils.crashCase(
+			'Main',
+			{
+				start: {line: 84, column: 5},
+				end: {line: 101, column: 44}
+			},
+			_p2)('unknow msg action');
+	});
+var _user$project$Main$update = F2(
+	function (msg, model) {
+		var _p6 = msg;
+		if (_p6.ctor === 'ChangeNote') {
+			var _p8 = _p6._1;
+			var _p7 = _p6._0;
+			return {
+				ctor: '_Tuple2',
+				_0: A3(_user$project$Main$updateNotes, _p7, _p8, model),
+				_1: A2(
+					_elm_lang$websocket$WebSocket$send,
+					model.wsurl,
+					A2(
+						_elm_lang$core$Json_Encode$encode,
+						0,
+						A2(_user$project$Main$changePitchWSMsg, _p7, _p8)))
+			};
+		} else {
+			return A2(_user$project$Main$onReceiveWSMsg, _p6._0, model);
+		}
+	});
+var _user$project$Main$RcvMsg = function (a) {
+	return {ctor: 'RcvMsg', _0: a};
 };
 var _user$project$Main$subscriptions = function (model) {
-	return A2(_elm_lang$websocket$WebSocket$listen, _user$project$Main$url, _user$project$Main$RcvState);
+	return A2(_elm_lang$websocket$WebSocket$listen, model.wsurl, _user$project$Main$RcvMsg);
 };
 var _user$project$Main$ChangeNote = F2(
 	function (a, b) {
 		return {ctor: 'ChangeNote', _0: a, _1: b};
 	});
 var _user$project$Main$viewNote = F2(
-	function (i, note) {
-		var newPitch = _user$project$Main$cyclePitch(note.pitch);
+	function (i, pitchIndex) {
+		var noteId = A2(
+			_elm_lang$core$Basics_ops['++'],
+			'note-',
+			_elm_lang$core$Basics$toString(i));
+		var cyclePitch = function (pitchIndex) {
+			return A2(_elm_lang$core$Basics_ops['%'], pitchIndex + 1, _user$project$Main$numPitches);
+		};
+		var newPitch = cyclePitch(pitchIndex);
 		return A2(
 			_elm_lang$html$Html$div,
 			{
@@ -9487,16 +9549,19 @@ var _user$project$Main$viewNote = F2(
 				_0: _elm_lang$html$Html_Attributes$class('note'),
 				_1: {
 					ctor: '::',
-					_0: _elm_lang$html$Html_Events$onClick(
-						A2(_user$project$Main$ChangeNote, i, newPitch)),
-					_1: {ctor: '[]'}
+					_0: _elm_lang$html$Html_Attributes$id(noteId),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$html$Html_Events$onClick(
+							A2(_user$project$Main$ChangeNote, i, newPitch)),
+						_1: {ctor: '[]'}
+					}
 				}
 			},
 			{
 				ctor: '::',
 				_0: _elm_lang$html$Html$text(
-					_elm_lang$core$Basics$toString(
-						_user$project$Main$pitchToInt(note.pitch))),
+					_elm_lang$core$Basics$toString(pitchIndex)),
 				_1: {ctor: '[]'}
 			});
 	});
@@ -9524,116 +9589,6 @@ var _user$project$Main$view = function (model) {
 			_1: {ctor: '[]'}
 		});
 };
-var _user$project$Main$State = {ctor: 'State'};
-var _user$project$Main$Beat = {ctor: 'Beat'};
-var _user$project$Main$determineTypeOfWSMsg = function (msg) {
-	var _p1 = A2(
-		_elm_lang$core$Json_Decode$decodeString,
-		A2(_elm_lang$core$Json_Decode$field, 'action', _elm_lang$core$Json_Decode$string),
-		msg);
-	_v1_2:
-	do {
-		if (_p1.ctor === 'Ok') {
-			switch (_p1._0) {
-				case 'state':
-					return _user$project$Main$State;
-				case 'beat':
-					return _user$project$Main$Beat;
-				default:
-					break _v1_2;
-			}
-		} else {
-			break _v1_2;
-		}
-	} while(false);
-	return _elm_lang$core$Native_Utils.crashCase(
-		'Main',
-		{
-			start: {line: 231, column: 5},
-			end: {line: 239, column: 47}
-		},
-		_p1)('Unexpected msg kind!');
-};
-var _user$project$Main$decodeWSMsg = function (msg) {
-	var updateState = F2(
-		function (newState, model) {
-			return _elm_lang$core$Native_Utils.update(
-				model,
-				{
-					notes: A2(
-						_elm_lang$core$List$map,
-						function (_p3) {
-							return _user$project$Main$Note(
-								_user$project$Main$intToPitch(_p3));
-						},
-						newState.payload.pitches)
-				});
-		});
-	var updateBeat = F2(
-		function (beat, model) {
-			return model;
-		});
-	var kind = _user$project$Main$determineTypeOfWSMsg(msg);
-	var payloadDecoder = function () {
-		var _p4 = kind;
-		if (_p4.ctor === 'State') {
-			var _p5 = A2(_elm_lang$core$Json_Decode$decodeString, _user$project$Main$decodeStateMsg, msg);
-			if (_p5.ctor === 'Ok') {
-				return updateState(_p5._0);
-			} else {
-				return _elm_lang$core$Native_Utils.crashCase(
-					'Main',
-					{
-						start: {line: 281, column: 21},
-						end: {line: 286, column: 43}
-					},
-					_p5)('');
-			}
-		} else {
-			var _p7 = A2(_elm_lang$core$Json_Decode$decodeString, _user$project$Main$decodeBeatMsg, msg);
-			if (_p7.ctor === 'Ok') {
-				return updateBeat(_p7._0);
-			} else {
-				return _elm_lang$core$Native_Utils.crashCase(
-					'Main',
-					{
-						start: {line: 289, column: 21},
-						end: {line: 294, column: 43}
-					},
-					_p7)('');
-			}
-		}
-	}();
-	return payloadDecoder;
-};
-var _user$project$Main$update = F2(
-	function (msg, model) {
-		var _p9 = msg;
-		if (_p9.ctor === 'ChangeNote') {
-			var _p11 = _p9._1;
-			var _p10 = _p9._0;
-			return {
-				ctor: '_Tuple2',
-				_0: A3(_user$project$Main$updateNotes, _p10, _p11, model),
-				_1: A2(
-					_elm_lang$websocket$WebSocket$send,
-					_user$project$Main$url,
-					A2(
-						_elm_lang$core$Json_Encode$encode,
-						0,
-						A2(
-							_user$project$Main$changePitchWSMsg,
-							_p10,
-							_user$project$Main$pitchToInt(_p11))))
-			};
-		} else {
-			return {
-				ctor: '_Tuple2',
-				_0: A2(_user$project$Main$decodeWSMsg, _p9._0, model),
-				_1: _elm_lang$core$Platform_Cmd$none
-			};
-		}
-	});
 var _user$project$Main$main = _elm_lang$html$Html$programWithFlags(
 	{init: _user$project$Main$init, view: _user$project$Main$view, update: _user$project$Main$update, subscriptions: _user$project$Main$subscriptions})(
 	A2(

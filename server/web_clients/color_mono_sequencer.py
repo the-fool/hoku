@@ -1,11 +1,21 @@
 from server.observable import observable_factory
 import json
 
+BASE_DO = 60
+
+ionian = [0, 2, 4, 5, 7, 9, 11]
+
 
 # OO implementation
 class ColorMonoSequencer:
-    def __init__(self, pitches=[60, 60, 60, 60], rhythm=[-1] * 16):
-        self.pitches = pitches
+    def __init__(self,
+                 base_do=BASE_DO,
+                 pitchIndices=[0, 0, 0, 0],
+                 scale=ionian,
+                 rhythm=[-1] * 16):
+        self.pitchIndices = pitchIndices
+        self.base_do = base_do
+        self.scale = scale
         self.length = len(rhythm)
         self.rhythm = rhythm
         self.real_notes = rhythm[:]
@@ -17,15 +27,22 @@ class ColorMonoSequencer:
             'action': 'state',
             'payload': {
                 'rhythm': self.rhythm,
-                'pitches': self.pitches
+                'pitches': self.pitchIndices
             }
         })
 
     def update_notes(self):
         for i, n in enumerate(self.rhythm):
             # 0 and -1 are special cases (not mapped)
-            val = self.pitches[n - 1] if n > 0 else n
-            self.real_notes[i] = val
+            if n > 0:
+                pitchIndex = self.pitchIndices[n - 1]
+                scaleIndex = pitchIndex % 7
+                scaleMultiplier = pitchIndex // 7
+                pitch = self.scale[scaleIndex] + self.base_do + (12 * scaleMultiplier)
+            else:
+                pitch = n
+
+            self.real_notes[i] = pitch
 
     async def metro_cb(self, ts):
         rhythm_index = ts % self.length
@@ -44,7 +61,7 @@ class ColorMonoSequencer:
         if kind == 'pitch':
             index = payload['index']
             value = payload['value']
-            self.pitches[index] = value
+            self.pitchIndices[index] = value
 
         elif kind == 'rhythm':
             index = payload['index']
