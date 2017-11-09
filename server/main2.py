@@ -1,6 +1,6 @@
 import asyncio
 
-from .instruments.four_by_four import instruments
+#from .instruments.four_by_four import instruments
 from .web_servers import ws_server_factory
 
 from .web_clients.clocker import clocker_factory
@@ -10,7 +10,9 @@ from .web_clients import metronome_changer_factory,\
     mono_sequencer_factory as mono_seq_web_client_factory,\
     ColorMonoSequencer as CMS
 
-from .modules import metronome, midi_worker_factory, mono_sequencer_factory
+from .modules import Metronome,\
+    midi_worker_factory,\
+    mono_sequencer_factory
 import logging
 
 starting_bpm = 120
@@ -20,10 +22,11 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG, format='%(relativeCreated)6d %(message)s')
 
+    instruments = {}
     midi_q, midi_worker_coro = midi_worker_factory(instruments)
 
     # make COLOR_MONO_SEQUENCER
-    cms = CMS(rhythm=[1, 0, 0, -1, -1, 2, -1, 4, -1, -1,-1, 3, 3, 3, 3, 3])
+    cms = CMS(rhythm=[1, 0, 0, -1, -1, 2, -1, 4, -1, -1, -1, 3, 3, 3, 3, 3])
 
     # make MONO_SEQUENCER
     notes_1 = [-1] * 16  # the notes in the sequence, a bar of rests
@@ -48,13 +51,13 @@ def main():
     particles_ws_consumer = particles_factory(midi_q)
 
     # Set up metronome
-    bpm_queue = asyncio.Queue()
     metronome_cbs = [
         clocker_metr_cb, mono_seq_1_metr_cb, mono_seq_2_metr_cb, cms.metro_cb
     ]
-    metr_coro = metronome(metronome_cbs, bpm_queue, starting_bpm)
+    metronome = Metronome(metronome_cbs, starting_bpm)
+
     metro_changer_obs, metro_ws_consumer = metronome_changer_factory(
-        bpm_queue, starting_bpm)
+        metronome.set_bpm, starting_bpm)
 
     # hash of {path: (consumer, producer)}
     ws_behaviors = {
@@ -67,7 +70,7 @@ def main():
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
 
-    coros = [ws_server_coro, metr_coro, midi_worker_coro]
+    coros = [ws_server_coro, metronome.run(), midi_worker_coro]
 
     loop = asyncio.get_event_loop()
 

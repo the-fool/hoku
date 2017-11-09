@@ -3,30 +3,34 @@ import logging
 import asyncio
 
 
-async def metronome(cbs, bpm_queue, bpm=120):
-    ts = 0
-    steps = 4
-    offset = 0
+class Metronome:
+    def __init__(self, cbs=[], bpm=120, steps=4):
+        logging.info(
+            'Creating Metronome at bpm {}'.format(bpm))
+        self.bpm = bpm
+        self.steps = steps
+        self.cbs = cbs
 
-    logging.info('Creating Metronome at bpm {} - steps {}'.format(bpm, steps))
+    def set_bpm(self, new_bpm):
+        self.bpm = new_bpm
 
-    while True:
-        sleep_time = max(0, (60 / bpm / steps - offset))
-        await asyncio.sleep(sleep_time)
+    async def run(self):
+        ts = 0
+        offset = 0
 
-        # start timer
-        t = time.time()
+        while True:
+            sleep_time = max(0, (60 / self.bpm / self.steps - offset))
+            await asyncio.sleep(sleep_time)
 
-        # monotonic timestamp increment
-        ts += 1
+            # start timer
+            t = time.time()
 
-        # send the 'tick' to all listeners
-        for cb in cbs:
-            await cb(ts)
+            # monotonic timestamp increment
+            ts += 1
 
-        # check if the bpm has changed
-        if not bpm_queue.empty():
-            bpm = await bpm_queue.get()
+            # send the 'tick' to all listeners
+            for cb in self.cbs:
+                await cb(ts)
 
-        # calc offset
-        offset = time.time() - t
+            # calc offset
+            offset = time.time() - t
