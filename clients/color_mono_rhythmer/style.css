@@ -1,0 +1,55 @@
+body {
+  background: black;
+}
+
+.container {
+  display: flex;
+}
+
+.rhythm-container {
+  display: flex;
+}
+
+.rhythm-box {
+  height: 30px;
+  width: 30px;
+  border: 2px solid white;
+}
+
+.mini-palette {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  height: 10px;
+  width: 10px;
+  margin: 2px;
+}
+
+.beat {
+  border: 2px solid teal !important;
+}
+
+.rhythm-box-container {
+  border: 2px solid black;
+}
+.rest {
+  background-color: grey;
+}
+
+.color-0 {
+  background-color: red;
+}
+
+.color-1 {
+  background-color: blue;
+}
+
+.color-2 {
+  background-color: green;
+}
+
+.color-3 {
+  background-color: yellow;
+}

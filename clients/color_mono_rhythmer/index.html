@@ -1,0 +1,35 @@
+<html>
+  <link rel="stylesheet" href="/lib/reboot.css" />
+  <link rel="stylesheet" href="/lib/base.css" />
+  <link rel="stylesheet" href="./style.css" />
+
+  <body>
+    <script src="elm.js"></script>
+    <script>
+     var websocketProtocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+     var websocketHost = websocketProtocol + location.hostname;
+     var app = Elm.Main.fullscreen({
+       websocketHost: websocketHost
+     });
+
+     app.ports.beat.subscribe(function(i) {
+       var e = document.getElementById('rhythm-' + i);
+       if (!e) {
+         return;
+       }
+       e.classList.add('beat');
+
+       if (i === 0) { i = 15; }
+       else {
+         i = (i - 1) % 16;
+       }
+       e = document.getElementById('rhythm-' + i);
+       if (!e) {
+         return
+       }
+       e.classList.remove('beat');
+     });
+    </script>
+  </body>
+
+</html>
