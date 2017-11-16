@@ -9,7 +9,7 @@ Main server for controlling LED FadeCandy server
 
 
 class OpcClientAsync:
-    def __init__(self, loop, server_ip_port, verbose=False):
+    def __init__(self, loop, server_ip_port, verbose=True):
         """Create an OPC client object which sends pixels to an OPC server.
 
         server_ip_port should be an ip:port or hostname:port as a single string.
@@ -48,7 +48,7 @@ class OpcClientAsync:
 
         """
         if self.socket:
-            self._debug('_ensure_connected: already connected, doing nothing')
+            self.debug('_ensure_connected: already connected, doing nothing')
             return True
 
         try:
@@ -133,8 +133,10 @@ class OpcClientAsync:
 
         self.debug('put_pixels: sending pixels to server')
         try:
-            await self.socket.write(message)
-        except:
+            self.socket.write(message)
+            await self.socket.drain()
+        except Exception as e:
+            print(e)
             self.debug('put_pixels: connection lost.  could not send pixels.')
             self.socket = None
             return False
