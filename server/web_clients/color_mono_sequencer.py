@@ -31,6 +31,10 @@ class ColorMonoSequencer:
             }
         })
 
+    @property
+    def notes(self):
+        return self.real_notes
+
     def update_notes(self):
         for i, n in enumerate(self.rhythm):
             # 0 and -1 are special cases (not mapped)

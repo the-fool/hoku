@@ -1,6 +1,6 @@
 import asyncio
 
-# from .instruments.four_by_four import instruments
+from .instruments.four_by_four import instruments
 
 from .web_servers import ws_server_factory
 
@@ -24,7 +24,7 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG, format='%(relativeCreated)6d %(message)s')
 
-    instruments = {}
+    # instruments = {}
     midi_q, midi_worker_coro = midi_worker_factory(instruments)
 
     # make COLOR_MONO_SEQUENCER
@@ -37,7 +37,7 @@ def main():
 
     on_beat_msgs_mono_2 = [('minilogue_1', 'note_on', 'note_off')]
     mono_seq_2 = MonoSequencer(
-        midi_q, cms.real_notes, on_beat_msgs=on_beat_msgs_mono_2)
+        midi_q, cms.notes, on_beat_msgs=on_beat_msgs_mono_2)
 
     mono_seq_obs, mono_seq_ws_consumer = mono_seq_web_client_factory(notes_1)
 
