@@ -7,10 +7,12 @@ AEOLIAN = [
     0, 2, 3, 5, 7, 8, 10
 ]
 
+# six scales
+
 SCALES = [
     IONIAN,
     AEOLIAN,
-] + [AEOLIAN] * 5
+] + [AEOLIAN] * 4
 
 
 class ScaleCube:

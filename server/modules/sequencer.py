@@ -1,5 +1,6 @@
 import logging
 
+# DEPRECATED!  Synchronous, bad, old!
 
 class Sequencer:
     def __init__(self, worker_pipe, on_trigger_msgs, clock_pipe, notes):

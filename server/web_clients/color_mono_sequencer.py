@@ -8,6 +8,20 @@ ionian = [0, 2, 4, 5, 7, 9, 11]
 
 # OO implementation
 class ColorMonoSequencer:
+    """
+    Responsible for interfacing with a remote client
+
+    It has 2 public methods:
+
+    1) A metronome callback
+      - on metronome ticks, it sends a message with a note & beat index out to clients
+
+    2) A WebSocket callback
+      - on websocket messages from the client, it updates the notes
+
+    It exposes a list of notes (real_notes) with the sequencer, which in turn is responsible for translating notes into midi messages
+    """
+
     def __init__(self,
                  base_do=BASE_DO,
                  pitchIndices=[0, 0, 0, 0],
@@ -18,7 +32,7 @@ class ColorMonoSequencer:
         self.scale = scale
         self.length = len(rhythm)
         self.rhythm = rhythm
-        self.real_notes = rhythm[:]
+        self.real_notes = [0] * len(rhythm)
         self.update_notes()
         self.obs, self.emit = observable_factory(self.msg_maker())
 
@@ -42,7 +56,8 @@ class ColorMonoSequencer:
                 pitchIndex = self.pitchIndices[n - 1]
                 scaleIndex = pitchIndex % 7
                 scaleMultiplier = pitchIndex // 7
-                pitch = self.scale[scaleIndex] + self.base_do + (12 * scaleMultiplier)
+                pitch = self.scale[scaleIndex] + self.base_do + (
+                    12 * scaleMultiplier)
             else:
                 pitch = n
 
