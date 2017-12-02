@@ -4,14 +4,19 @@
 #include "ubit-neopixel/uBit_neopixel.h"
 
 int x, r, b;
+int contacted = 0;
+char buffer[64];
+int pitch, roll, roll_quad, pitch_quad, face;
 int LED_LEN = 1;
 int connected = 0;
 int i = 0, j = 0;
 MicroBit uBit;
 _neopixel_strip_t pixels;
 MicroBitI2C i2c = MicroBitI2C(I2C_SDA0, I2C_SCL0);
-MicroBitAccelerometer accelerometer = MicroBitAccelerometer(i2c);
+MicroBitAccelerometer acc = MicroBitAccelerometer(i2c);
 MicroBitUARTService *uart;
+MicroBitPin P0(MICROBIT_ID_IO_P0, MICROBIT_PIN_P0, PIN_CAPABILITY_ALL); 
+MicroBitSerial serial(USBTX, USBRX); 
 
 void onConnected(MicroBitEvent)
 {
@@ -25,25 +30,89 @@ void onDisconnected(MicroBitEvent)
   connected = 0;
 }
 
+int getQuad(int deg) {
+  if (deg > -45 && deg <= 45) {
+    return 0;
+  }
+
+  if (deg >  45 && deg <= 90 + 45) {
+    return 1;
+  }
+  if (deg > 90 + 45 || deg < -180 + 45) {
+    return 2;
+  }
+
+  return 3;
+}
+
+int getFace(int pitch_quad, int roll_quad) {
+  if (pitch_quad == 0) {
+    // front or back
+    return roll_quad;
+  }
+  if (pitch_quad == 1) {
+    return 4;
+  }
+  if (pitch_quad == 3) {
+    return 5;
+  }
+  return 5;
+}
+
+void onContact(MicroBitEvent)
+{
+  x = P0.getDigitalValue();
+  if (x == contacted) {
+    return;
+  }
+  contacted = x;
+
+  pitch = acc.getPitch();
+  roll = acc.getRoll();
+
+  roll_quad = getQuad(roll);
+  pitch_quad = getQuad(pitch);
+  face = getFace(pitch_quad, roll_quad);
+
+
+  //sprintf(buffer, "p:%d r:%d pq:%d rq:%d\n", pitch, roll, pitch_quad, roll_quad);
+  sprintf(buffer, "face: %d\r\n", face);
+  uBit.display.scroll(face);
+  serial.send(buffer);
+  uBit.sleep(500);
+  // uart->send(roll);
+}
+
 int main() {
 
   uBit.init();
   uBit.display.scroll("GO");
 
-  accelerometer.setRange(1);
-  accelerometer.setPeriod(20);
+  uBit.serial.baud(115200);
+  acc.setRange(1);
+  acc.setPeriod(20);
 
   uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_CONNECTED, onConnected);
   uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_DISCONNECTED, onDisconnected);
 
+  uBit.messageBus.listen(MICROBIT_ID_IO_P0, MICROBIT_BUTTON_EVT_UP, onContact);
+  uBit.messageBus.listen(MICROBIT_ID_IO_P0, MICROBIT_BUTTON_EVT_DOWN, onContact);
+  uBit.io.P0.isTouched();
   // new MicroBitAccelerometerService(*uBit.ble, uBit.accelerometer);
   uart = new MicroBitUARTService(*uBit.ble, 32, 32);
   neopixel_init(&pixels, MICROBIT_PIN_P0, LED_LEN);
+  /*
+  while (1) {
+    x = P0.getDigitalValue();
+    uBit.display.scroll(x);
+    uBit.sleep(1000);
+  }
+
 
   while (1) {
     j = (j + 1) % 8;
 
-    x = accelerometer.getRoll();
+    x = acc.getRoll();
 
     if (connected && j == 0) {
       uart->send(x);
@@ -59,6 +128,7 @@ int main() {
 
     uBit.sleep(20);
   }
+  */
 
   release_fiber();
 }
