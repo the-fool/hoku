@@ -10,6 +10,7 @@ from .web_clients.particles import particles_factory
 from .web_clients import MetronomeChanger,\
     mono_sequencer_factory as mono_seq_web_client_factory,\
     ColorMonoSequencer as CMS
+from .web_socket_clients import Clocker
 
 from .modules import Metronome,\
     MonoSequencer
@@ -37,14 +38,15 @@ def main():
     mono_seq_obs, mono_seq_ws_consumer = mono_seq_web_client_factory(notes_1)
 
     # make CLOCKER
-    clocker_obs, clocker_metr_cb, clocker_ws_consumer = clocker_factory()
+    clocker = Clocker()
 
     # make particles
     # particles_ws_consumer = particles_factory(midi_q)
 
     # Set up metronome
     metronome_cbs = [
-        clocker_metr_cb, mono_seq_1.on_beat, mono_seq_2.on_beat, cms.metro_cb
+        clocker.metronome_cb,
+        mono_seq_1.on_beat, mono_seq_2.on_beat, cms.metro_cb
     ]
     metronome = Metronome(metronome_cbs, starting_bpm)
 
@@ -52,7 +54,7 @@ def main():
         init_bpm=starting_bpm, on_change_cb=metronome.set_bpm)
     # hash of {path: (consumer, producer)}
     ws_behaviors = {
-        'clocker': (clocker_ws_consumer, clocker_obs),
+        'clocker': (None, clocker.obs),
         # 'particles': (particles_ws_consumer, None),
         'metronome_changer': (metro_changer.ws_consumer, metro_changer.obs),
         'monosequencer': (mono_seq_ws_consumer, mono_seq_obs),
