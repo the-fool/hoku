@@ -25,19 +25,15 @@ def main():
         level=logging.DEBUG, format='%(relativeCreated)6d %(message)s')
 
     # instruments = {}
-    midi_q, midi_worker_coro = midi_worker_factory(instruments)
 
     # make COLOR_MONO_SEQUENCER
     cms = CMS(rhythm=[-1] * 16)
 
     # make MONO_SEQUENCER
     notes_1 = [-1] * 16  # the notes in the sequence, a bar of rests
-    on_beat_msgs_mono_1 = []  # the messages to be sent for each note
-    mono_seq_1 = MonoSequencer(midi_q, notes_1, on_beat_msgs_mono_1)
 
-    on_beat_msgs_mono_2 = [('minilogue_1', 'note_on', 'note_off')]
-    mono_seq_2 = MonoSequencer(
-        midi_q, cms.notes, on_beat_msgs=on_beat_msgs_mono_2)
+    mono_seq_1 = MonoSequencer(notes_1, instruments=[])
+    mono_seq_2 = MonoSequencer(cms.notes, instruments=[])
 
     mono_seq_obs, mono_seq_ws_consumer = mono_seq_web_client_factory(notes_1)
 
@@ -45,7 +41,7 @@ def main():
     clocker_obs, clocker_metr_cb, clocker_ws_consumer = clocker_factory()
 
     # make particles
-    particles_ws_consumer = particles_factory(midi_q)
+    # particles_ws_consumer = particles_factory(midi_q)
 
     # Set up metronome
     metronome_cbs = [
@@ -59,7 +55,7 @@ def main():
     # hash of {path: (consumer, producer)}
     ws_behaviors = {
         'clocker': (clocker_ws_consumer, clocker_obs),
-        'particles': (particles_ws_consumer, None),
+        # 'particles': (particles_ws_consumer, None),
         'metronome_changer': (metro_ws_consumer, metro_changer_obs),
         'monosequencer': (mono_seq_ws_consumer, mono_seq_obs),
         'colormonosequencer': (cms.ws_consumer, cms.obs)
@@ -67,7 +63,7 @@ def main():
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
 
-    coros = [ws_server_coro, metronome.run(), midi_worker_coro]
+    coros = [ws_server_coro, metronome.run()]
 
     loop = asyncio.get_event_loop()
 

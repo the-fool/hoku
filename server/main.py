@@ -17,10 +17,6 @@ MBIT_GUPAZ = 'D5:38:B0:2D:BF:B6'
 DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
 
-def noop_2ary(a, b):
-    pass
-
-
 def run():
     logging.basicConfig(
         level=logging.DEBUG,
