@@ -7,12 +7,11 @@ from .web_servers import ws_server_factory
 from .web_clients.clocker import clocker_factory
 from .web_clients.particles import particles_factory
 
-from .web_clients import metronome_changer_factory,\
+from .web_clients import MetronomeChanger,\
     mono_sequencer_factory as mono_seq_web_client_factory,\
     ColorMonoSequencer as CMS
 
 from .modules import Metronome,\
-    midi_worker_factory,\
     MonoSequencer
 
 import logging
@@ -49,14 +48,13 @@ def main():
     ]
     metronome = Metronome(metronome_cbs, starting_bpm)
 
-    metro_changer_obs, metro_ws_consumer = metronome_changer_factory(
-        metronome.set_bpm, starting_bpm)
-
+    metro_changer = MetronomeChanger(
+        init_bpm=starting_bpm, on_change_cb=metronome.set_bpm)
     # hash of {path: (consumer, producer)}
     ws_behaviors = {
         'clocker': (clocker_ws_consumer, clocker_obs),
         # 'particles': (particles_ws_consumer, None),
-        'metronome_changer': (metro_ws_consumer, metro_changer_obs),
+        'metronome_changer': (metro_changer.ws_consumer, metro_changer.obs),
         'monosequencer': (mono_seq_ws_consumer, mono_seq_obs),
         'colormonosequencer': (cms.ws_consumer, cms.obs)
     }

@@ -1,3 +1,3 @@
 from .metronome import Metronome
-from .midi_worker import midi_worker_factory
 from .mono_sequencer import MonoSequencer
+from .scale_cube import ScaleCube

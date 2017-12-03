@@ -6,16 +6,12 @@ def msg_maker(bpm: int):
     return json.dumps({'current_bpm': bpm})
 
 
-def metronome_changer_factory(bpm_queue, bpm):
-    msg = msg_maker(bpm)
-    obs, emit = observable_factory(msg)
+class MetronomeChanger:
+    def __init__(self, init_bpm, on_change_cb):
+        self.on_change_cb = on_change_cb
+        self.obs, self.emit = observable_factory(msg_maker(init_bpm))
 
-    async def ws_consumer(kind, payload, uuid):
-        nonlocal bpm_queue
-
+    async def ws_consumer(self, kind, payload, uuid):
         if kind == 'change':
-            await bpm_queue.put(payload)
-            msg = msg_maker(payload)
-            await emit(msg)
-
-    return obs, ws_consumer
+            self.on_change_cb(payload)
+            self.emit(msg_maker(payload))
