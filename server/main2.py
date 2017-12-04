@@ -20,7 +20,7 @@ starting_bpm = 120
 
 def main():
     logging.basicConfig(
-        level=logging.DEBUG, format='%(relativeCreated)6d %(message)s')
+        level=logging.INFO, format='%(relativeCreated)6d %(message)s')
 
     # instruments = {}
 

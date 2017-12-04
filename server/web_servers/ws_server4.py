@@ -34,7 +34,7 @@ def make_handler(behaviors):
         while True:
             try:
                 message = await producer_queue.get()
-                logging.info('Going to send {}'.format(message))
+                logging.debug('Going to send {}'.format(message))
                 await websocket.send(message)
             except:
                 dispose()
@@ -59,7 +59,7 @@ def make_handler(behaviors):
             kind = data.get('kind', None)
             payload = data.get('payload', None)
 
-            logging.info('Got: {} {}'.format(kind, payload))
+            logging.debug('Got: {} {}'.format(kind, payload))
             await consumer_coro(
                 kind=kind, payload=payload, uuid=websocket.uuid)
 
@@ -89,7 +89,7 @@ def make_handler(behaviors):
         # (or another uncaught exception is thrown)
         done, pending = await asyncio.wait(
             [consumer_task, producer_task],
-            return_when=asyncio.FIRST_COMPLETED, )
+            return_when=asyncio.ALL_COMPLETED, )
 
         # We should cancel the remaining tasks
         for task in pending:

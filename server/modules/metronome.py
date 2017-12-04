@@ -3,6 +3,8 @@ import logging
 import asyncio
 
 
+ceiling = 2**32
+
 class Metronome:
     def __init__(self, cbs=[], bpm=120, steps=4):
         logging.info(
@@ -26,7 +28,10 @@ class Metronome:
             t = time.time()
 
             # monotonic timestamp increment
-            ts += 1
+            if ts > ceiling:
+                ts = 0
+            else:
+                ts += 1
 
             # send the 'tick' to all listeners
             for cb in self.cbs:

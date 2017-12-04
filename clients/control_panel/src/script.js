@@ -12,12 +12,14 @@ const svg = d3.select("svg"),
 
 let bpm = 120;
 
+const wsUrl = path =>`ws://${window.location.hostname}:7700/${path}`;
+
 
 /// Encapsulated Recipes
 
 function makeBpmWidget() {
   const gutter = 30;
-  const indicatorLightWidth = 15;
+  const indicatorLightWidth = 25;
   const indicatorLightGutter = 15;
   const bpmWidget = svg.append('g')
         .attrs({
@@ -25,6 +27,15 @@ function makeBpmWidget() {
           transform: `translate(${margin.left},${margin.top})`
         });
 
+  const clockWs = new WebSocket(wsUrl('clocker'));
+  clockWs.onmessage = function(d) {
+    const data = JSON.parse(d.data);
+    const tick = data.tick % 16;
+    bpmWidget.select(`#indicator-${tick}`).classed('active', true);
+    bpmWidget.select(`#indicator-${tick === 0 ? 15 : tick - 1}`).classed('active', false);
+  };
+
+  const bpmWs = new WebSocket(wsUrl('metronome_changer'));
 
   function makeBpmIndicator() {
     const bpmIndicator = bpmWidget.append('g')
@@ -39,6 +50,7 @@ function makeBpmWidget() {
             cx: col * (indicatorLightWidth + indicatorLightGutter),
             cy: row * (indicatorLightWidth + indicatorLightGutter),
             r: indicatorLightWidth / 2,
+            id: `indicator-${row * 4 + col}`,
             'class': 'indicator-light'
           });
       }
@@ -46,7 +58,9 @@ function makeBpmWidget() {
   }
 
   function makeBpmSlider() {
-    const bpmScale = makeLinearScale(bpmHeight, [30, 180]);
+    let mostRecentBpmChange = 0;
+
+    const bpmScale = makeLinearScale(bpmHeight, [0, 1]);
 
     const bpmControl = bpmWidget.append('g')
           .attrs({
@@ -56,10 +70,25 @@ function makeBpmWidget() {
     makeTrack(bpmControl, bpmScale, onDragBpm);
     const bpmHandle = makeHandle(bpmControl);
 
+
+    function sendWsMsg(val) {
+      bpmWs.send(JSON.stringify({
+        kind: 'change',
+        payload: val
+      }));
+    }
+
+    const throttledSend = throttle(sendWsMsg, 100);
+
     function onDragBpm() {
       const newVal = bpmScale(bpmScale.invert(d3.event.y));
-      console.log(newVal / bpmScale.range()[1]);
       bpmHandle.attr('cy', newVal);
+
+      if (newVal !== mostRecentBpmChange) {
+        mostRecentBpmChange = newVal;
+        // do not send a zero
+        throttledSend(Math.max(newVal / bpmHeight, 0.01));
+      }
     }
   }
 
@@ -144,6 +173,9 @@ function makeHandle(parentGroup) {
     .attr("r", 9);
 }
 
+function makeWebSocket() {
+  
+}
 
 $(function() {
   makeBpmWidget();

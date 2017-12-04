@@ -14,6 +14,10 @@ body {
 
 .indicator-light {
   fill: green;
+
+  &.active {
+    fill: red;
+  }
 }
 
 .ticks {
