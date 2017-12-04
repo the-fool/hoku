@@ -1,17 +1,17 @@
 import asyncio
 
-from .instruments.four_by_four import instruments
+# from .instruments.four_by_four import instruments
 
 from .web_servers import ws_server_factory
 
 
-from .web_clients import MetronomeChanger,\
-    mono_sequencer_factory as mono_seq_web_client_factory,\
-    ColorMonoSequencer as CMS
+from .web_clients import ColorMonoSequencer as CMS
+
 from .web_socket_clients import Clocker, MetronomeChanger
 
 from .modules import Metronome,\
-    MonoSequencer
+    MonoSequencer,\
+    ColorSequencer
 
 import logging
 
@@ -33,8 +33,6 @@ def main():
     mono_seq_1 = MonoSequencer(notes_1, instruments=[])
     mono_seq_2 = MonoSequencer(cms.notes, instruments=[])
 
-    mono_seq_obs, mono_seq_ws_consumer = mono_seq_web_client_factory(notes_1)
-
     # make CLOCKER
     clocker = Clocker()
 
@@ -55,7 +53,6 @@ def main():
         'clocker': (None, clocker.obs),
         # 'particles': (particles_ws_consumer, None),
         'metronome_changer': (metro_changer.ws_consumer, metro_changer.obs),
-        'monosequencer': (mono_seq_ws_consumer, mono_seq_obs),
         'colormonosequencer': (cms.ws_consumer, cms.obs)
     }
 

@@ -16,7 +16,7 @@ class MonoSequencer:
         if len(self.notes) == 0:
             return
 
-        if len(self.on_beat_msgs) == 0:
+        if len(self.instruments) == 0:
             return
 
         step = ts % len(self.notes)

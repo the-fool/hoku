@@ -3,7 +3,7 @@ import json
 
 
 # OO implementation
-class ColorMonoSequencer:
+class ColorSequencer:
     """
     Responsible for interfacing with a remote client
 

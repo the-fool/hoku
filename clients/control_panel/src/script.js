@@ -15,26 +15,57 @@ let bpm = 120;
 
 /// Encapsulated Recipes
 
-
-function makeBpmSlider() {
-  const bpmScale = makeLinearScale(bpmHeight, [30, 180]);
-
-  const bpmControl = svg.append('g')
+function makeBpmWidget() {
+  const gutter = 30;
+  const indicatorLightWidth = 15;
+  const indicatorLightGutter = 15;
+  const bpmWidget = svg.append('g')
         .attrs({
-          id: 'bpmControl',
+          id: 'bpmWidget',
           transform: `translate(${margin.left},${margin.top})`
         });
 
-  makeTrack(bpmControl, bpmScale, onDragBpm);
-  const bpmHandle = makeHandle(bpmControl);
 
-  function onDragBpm() {
-    const newVal = bpmScale(bpmScale.invert(d3.event.y));
-    console.log(newVal / bpmScale.range()[1]);
-    bpmHandle.attr('cy', newVal);
+  function makeBpmIndicator() {
+    const bpmIndicator = bpmWidget.append('g')
+          .attrs({
+            id: 'bpmIndicator',
+            transform: `translate(${gutter}, 0)`
+          });
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 4; col++) {
+        bpmIndicator.append('circle')
+          .attrs({
+            cx: col * (indicatorLightWidth + indicatorLightGutter),
+            cy: row * (indicatorLightWidth + indicatorLightGutter),
+            r: indicatorLightWidth / 2,
+            'class': 'indicator-light'
+          });
+      }
+    }
   }
-}
 
+  function makeBpmSlider() {
+    const bpmScale = makeLinearScale(bpmHeight, [30, 180]);
+
+    const bpmControl = bpmWidget.append('g')
+          .attrs({
+            id: 'bpmControl'
+          });
+
+    makeTrack(bpmControl, bpmScale, onDragBpm);
+    const bpmHandle = makeHandle(bpmControl);
+
+    function onDragBpm() {
+      const newVal = bpmScale(bpmScale.invert(d3.event.y));
+      console.log(newVal / bpmScale.range()[1]);
+      bpmHandle.attr('cy', newVal);
+    }
+  }
+
+  makeBpmSlider();
+  makeBpmIndicator();
+}
 
 function makeDemoSlider() {
   const slider = svg.append("g")
@@ -115,5 +146,5 @@ function makeHandle(parentGroup) {
 
 
 $(function() {
-  makeBpmSlider();
+  makeBpmWidget();
 })
