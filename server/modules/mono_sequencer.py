@@ -2,7 +2,7 @@ import logging
 
 
 class MonoSequencer:
-    def __init__(self, notes, instruments=[]):
+    def __init__(self, notes, instruments=[], time_multiplier=1):
         """
         Notes are a mutable, public list of notes
         cbs are a list of objects that implement the BaseInstrument interface,
@@ -12,6 +12,11 @@ class MonoSequencer:
         self.off_note = 0
         self.instruments = instruments
 
+        # if a time_multiplier is 1, then we hit on every beat
+        # else, if the multiplier increases the amount of time each step takes
+        # eg, with multiplier at 4, each step will be 4 times as long
+        self.time_multiplier = time_multiplier
+
     async def on_beat(self, ts):
         if len(self.notes) == 0:
             return
@@ -19,7 +24,10 @@ class MonoSequencer:
         if len(self.instruments) == 0:
             return
 
-        step = ts % len(self.notes)
+        if ts % self.time_multiplier != 0:
+            return
+
+        step = (ts // self.time_multiplier) % len(self.notes)
 
         note = self.notes[step]
 

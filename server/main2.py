@@ -48,6 +48,7 @@ def main():
 
     metro_changer = MetronomeChanger(
         init_bpm=starting_bpm, on_change_cb=metronome.set_bpm)
+
     # hash of {path: (consumer, producer)}
     ws_behaviors = {
         'clocker': (None, clocker.obs),
