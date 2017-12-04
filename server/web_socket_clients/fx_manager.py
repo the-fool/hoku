@@ -8,6 +8,10 @@ def msg_maker(fx_name, value):
 
 class FxManager:
     def __init__(self, cbs={}):
+        """
+        cbs are a dict, keyed by a string name
+        the callback takes a single value
+        """
         self.cbs = cbs
         self.obs, self.emit = observable_factory()
 
