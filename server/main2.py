@@ -4,13 +4,11 @@ from .instruments.four_by_four import instruments
 
 from .web_servers import ws_server_factory
 
-from .web_clients.clocker import clocker_factory
-from .web_clients.particles import particles_factory
 
 from .web_clients import MetronomeChanger,\
     mono_sequencer_factory as mono_seq_web_client_factory,\
     ColorMonoSequencer as CMS
-from .web_socket_clients import Clocker
+from .web_socket_clients import Clocker, MetronomeChanger
 
 from .modules import Metronome,\
     MonoSequencer
