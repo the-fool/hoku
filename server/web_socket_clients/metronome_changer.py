@@ -25,4 +25,4 @@ class MetronomeChanger:
     async def ws_consumer(self, kind, payload, uuid):
         if kind == 'change':
             self.on_change_cb(scale_it(payload))
-            self.emit(msg_maker(payload))
+            await self.emit(msg_maker(payload))

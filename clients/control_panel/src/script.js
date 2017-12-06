@@ -173,10 +173,15 @@ function makeHandle(parentGroup) {
     .attr("r", 9);
 }
 
-function makeWebSocket() {
-  
+function makeScaleWidget() {
+  const ws = new WebSocket(wsUrl('scale'));
+  ws.onmessage = function(d) {
+    const data = JSON.parse(d.data);
+    console.log(data);
+  };
 }
 
 $(function() {
   makeBpmWidget();
-})
+  makeScaleWidget();
+});

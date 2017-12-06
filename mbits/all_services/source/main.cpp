@@ -45,7 +45,7 @@ int getQuad(int deg) {
   return 3;
 }
 
-int getFace(int pitch_quad, int roll_quad) {
+int calcFace(int pitch_quad, int roll_quad) {
   if (pitch_quad == 0) {
     // front or back
     return roll_quad;
@@ -59,6 +59,17 @@ int getFace(int pitch_quad, int roll_quad) {
   return 5;
 }
 
+int getFace()
+{
+  pitch = acc.getPitch();
+  roll = acc.getRoll();
+
+  roll_quad = getQuad(roll);
+  pitch_quad = getQuad(pitch);
+
+  return calcFace(pitch_quad, roll_quad);
+}
+
 void onContact(MicroBitEvent)
 {
   x = P0.getDigitalValue();
@@ -67,20 +78,24 @@ void onContact(MicroBitEvent)
   }
   contacted = x;
 
-  pitch = acc.getPitch();
-  roll = acc.getRoll();
-
-  roll_quad = getQuad(roll);
-  pitch_quad = getQuad(pitch);
-  face = getFace(pitch_quad, roll_quad);
+  face = getFace();
 
 
   //sprintf(buffer, "p:%d r:%d pq:%d rq:%d\n", pitch, roll, pitch_quad, roll_quad);
-  sprintf(buffer, "face: %d\r\n", face);
-  uBit.display.scroll(face);
-  serial.send(buffer);
+  //uBit.display.scroll(face);
+  //serial.send(buffer);
+
+  sprintf(buffer, "%d%d", contacted, face);
+  uart->send(buffer);
   uBit.sleep(500);
-  // uart->send(roll);
+}
+
+void onButtonA(MicroBitEvent)
+{
+  face = getFace();
+  sprintf(buffer, "1%d", face);
+  uart->send(buffer);
+  uBit.sleep(500);
 }
 
 int main() {
@@ -101,13 +116,9 @@ int main() {
   // new MicroBitAccelerometerService(*uBit.ble, uBit.accelerometer);
   uart = new MicroBitUARTService(*uBit.ble, 32, 32);
   neopixel_init(&pixels, MICROBIT_PIN_P0, LED_LEN);
-  /*
-  while (1) {
-    x = P0.getDigitalValue();
-    uBit.display.scroll(x);
-    uBit.sleep(1000);
-  }
 
+  uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA);
+  /*
 
   while (1) {
     j = (j + 1) % 8;
@@ -129,6 +140,9 @@ int main() {
     uBit.sleep(20);
   }
   */
+
+  while(1)
+    uBit.sleep(50);
 
   release_fiber();
 }
