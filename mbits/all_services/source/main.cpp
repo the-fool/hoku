@@ -3,20 +3,23 @@
 #include "MicroBitUARTService.h"
 #include "ubit-neopixel/uBit_neopixel.h"
 
-int x, r, b;
-int contacted = 0;
-char buffer[64];
-int pitch, roll, roll_quad, pitch_quad, face;
-int LED_LEN = 1;
-int connected = 0;
-int i = 0, j = 0;
 MicroBit uBit;
 _neopixel_strip_t pixels;
 MicroBitI2C i2c = MicroBitI2C(I2C_SDA0, I2C_SCL0);
 MicroBitAccelerometer acc = MicroBitAccelerometer(i2c);
 MicroBitUARTService *uart;
-MicroBitPin P0(MICROBIT_ID_IO_P0, MICROBIT_PIN_P0, PIN_CAPABILITY_ALL); 
-MicroBitSerial serial(USBTX, USBRX); 
+MicroBitPin P0(MICROBIT_ID_IO_P0, MICROBIT_PIN_P0, PIN_CAPABILITY_ALL);
+MicroBitSerial serial(USBTX, USBRX);
+
+// whether the mbit is contacted to the pillar
+int contacted_now, contacted_prev = 0;
+
+char buffer[64];
+
+int pitch, roll, roll_quad, pitch_quad, face;
+
+int LED_LEN = 1;
+int connected = 0;
 
 void onConnected(MicroBitEvent)
 {
@@ -38,6 +41,7 @@ int getQuad(int deg) {
   if (deg >  45 && deg <= 90 + 45) {
     return 1;
   }
+
   if (deg > 90 + 45 || deg < -180 + 45) {
     return 2;
   }
@@ -50,12 +54,15 @@ int calcFace(int pitch_quad, int roll_quad) {
     // front or back
     return roll_quad;
   }
+
   if (pitch_quad == 1) {
     return 4;
   }
+
   if (pitch_quad == 3) {
     return 5;
   }
+
   return 5;
 }
 
@@ -72,20 +79,22 @@ int getFace()
 
 void onContact(MicroBitEvent)
 {
-  x = P0.getDigitalValue();
-  if (x == contacted) {
+  contacted_now = P0.getDigitalValue();
+
+  if (contacted_now == contacted_prev) {
+    // debounce the duplicate values!
     return;
   }
-  contacted = x;
+
+  contacted_prev = contacted_now;
 
   face = getFace();
-
 
   //sprintf(buffer, "p:%d r:%d pq:%d rq:%d\n", pitch, roll, pitch_quad, roll_quad);
   //uBit.display.scroll(face);
   //serial.send(buffer);
 
-  sprintf(buffer, "%d%d", contacted, face);
+  sprintf(buffer, "%d%d", contacted_now, face);
   uart->send(buffer);
   uBit.sleep(500);
 }
@@ -120,25 +129,25 @@ int main() {
   uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA);
   /*
 
-  while (1) {
-    j = (j + 1) % 8;
+   while (1) {
+   j = (j + 1) % 8;
 
-    x = acc.getRoll();
+   x = acc.getRoll();
 
-    if (connected && j == 0) {
-      uart->send(x);
-    }
+   if (connected && j == 0) {
+   uart->send(x);
+   }
 
-    x = x > 0 ? x : x * -1;
+   x = x > 0 ? x : x * -1;
 
-    b = (int)floor(0 + (x * 255/180));
-    r = (int)floor(255 - (x * 255/180));
+   b = (int)floor(0 + (x * 255/180));
+   r = (int)floor(255 - (x * 255/180));
 
-    for (i = 0; i < LED_LEN; i++)
-      neopixel_set_color_and_show(&pixels, i, r, 20, b);
+   for (i = 0; i < LED_LEN; i++)
+   neopixel_set_color_and_show(&pixels, i, r, 20, b);
 
-    uBit.sleep(20);
-  }
+   uBit.sleep(20);
+   }
   */
 
   while(1)
