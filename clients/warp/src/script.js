@@ -1,121 +1,568 @@
-// requestAnimFrame shim
-window.requestAnimFrame = (function() {
-    return window.requestAnimationFrame ||
-        window.webkitRequestAnimationFrame ||
-        window.mozRequestAnimationFrame ||
-        window.oRequestAnimationFrame ||
-        window.msRequestAnimationFrame ||
-        function(callback) {
-            window.setTimeout(callback);
-        };
-})();
+let MODE = 0;
+
+let bpm = 100;
+const bpmToWarpSpeed = d3.scaleLinear().domain([80, 260]).range([0.01, 0.8]).clamp(true);
 
 // setup aliases
 const Rnd = Math.random,
-    Floor = Math.floor;
+      Floor = Math.floor;
+
 // get dimensions of window and resize the canvas to fit
-const width = window.innerWidth,
-    height = window.innerHeight,
-    canvas = document.getElementById('c');
+const width = window.innerWidth;
+const height = window.innerHeight;
 
-canvas.width = width;
-canvas.height = height;
+/*
+* AUTHOR: Iacopo Sassarini
+*/
 
-let mousex = width / 2,
-    mousey = height / 2;
+if (!Detector.webgl) Detector.addGetWebGLMessage();
 
-// get 2d graphics context and set global alpha
-const G = canvas.getContext('2d');
-G.globalAlpha = 0.5;
+var VISUALS_VISIBLE = true;
 
+var SCALE_FACTOR = 1500;
+var CAMERA_BOUND = 20000;
 
-// constants and storage for objects that represent star positions
-const startingWarpSpeed = 12,
-    numStars = 500,
-    stars = [];
+var NUM_POINTS_SUBSET = 32000;
+var NUM_SUBSETS = 7;
+var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
 
-let cycle = 0,
-    starWidth = 2,
-    lightness = 80,
-    warpSpeed = (1 / 25 * 2);
+var NUM_LEVELS = 7;
+var LEVEL_DEPTH = 1600;
 
-// mouse events
-function addCanvasEventListener(name, fn) {
-    canvas.addEventListener(name, fn, false);
-}
-addCanvasEventListener('mousemove', function(e) {
-    mousex = e.clientX;
-    mousey = e.clientY;
-});
+var DEF_BRIGHTNESS = 1;
+var DEF_SATURATION = 0.8;
+let ORBIT_REGEN_COOLDOWN = 3000;
+var SPRITE_SIZE = 5;
 
-function wheel(e) {
-    const delta = e.detail ? -e.detail / 3 : e.wheelDelta / 120;
-    const doff = (delta / 25);
-    if (delta > 0 && warpSpeed + doff <= 0.5 || delta < 0 && warpSpeed + doff >= 0.01) {
-        warpSpeed += (delta / 25);
-    }
-}
+// Orbit parameters constraints
+var A_MIN = -30;
+var A_MAX = 30;
+var B_MIN = .2;
+var B_MAX = 1.8;
+var C_MIN = 5;
+var C_MAX = 17;
+var D_MIN = 0;
+var D_MAX = 10;
+var E_MIN = 0;
+var E_MAX = 12;
 
-addCanvasEventListener('DOMMouseScroll', wheel);
-addCanvasEventListener('mousewheel', wheel);
+// Orbit parameters
+var a, b, c, d, e;
 
-// function to reset a star object
-function resetstar(a = {}) {
-    a.x = (Rnd() * width - (width * 0.5)) * startingWarpSpeed;
-    a.y = (Rnd() * height - (height * 0.5)) * startingWarpSpeed;
-    a.z = startingWarpSpeed;
-    a.px = 0;
-    a.py = 0;
-
-    return a;
-}
-
-// initial star setup
-for (let i = 0; i < numStars; i++) {
-    stars.push(resetstar());
-}
-
-// star rendering anim function
-function animFrame() {
-    // clear background
-    G.fillStyle = '#000';
-    G.fillRect(0, 0, width, height);
-
-    // mouse position to head towards
-    const cx = (mousex - width / 2) + (width / 2),
-        cy = (mousey - height / 2) + (height / 2);
-
-    // update all stars
-    const sat = Math.min(Floor(warpSpeed * 500), 100); // warpSpeed range 0.01 -> 0.5
-
-    stars.forEach((star, i) => {
-        const xx = star.x / star.z, // star position
-            yy = star.y / star.z,
-            e = (1.0 / star.z + 1) * 20; // size i.e. z
-
-        if (star.px !== 0) {
-            G.strokeStyle = `hsl(${(cycle * i) % 360},${sat}%,${lightness}%)`;
-            G.lineWidth = starWidth;
-            G.beginPath();
-            G.moveTo(xx + cx, yy + cy);
-            G.lineTo(star.px + cx, star.py + cy);
-            G.stroke();
-        }
-
-        // update star position values with new settings
-        star.px = xx;
-        star.py = yy;
-        star.z -= warpSpeed;
-
-        // reset when star is out of the view field
-        if (star.z < warpSpeed || star.px > width || star.py > height) {
-            // reset star
-            resetstar(star);
-        }
-        // colour cycle sinewave rotation
-        cycle += 0.01;
-    });
-
-    requestAnimFrame(animFrame);
+// Orbit data
+var orbit = {
+  subsets: [],
+  xMin: 0,
+  xMax: 0,
+  yMin: 0,
+  yMax: 0,
+  scaleX: 0,
+  scaleY: 0
 };
-requestAnimFrame(animFrame);
+
+// Initialize data points
+for (var i = 0; i < NUM_SUBSETS; i++) {
+  var subsetPoints = [];
+  for (var j = 0; j < NUM_POINTS_SUBSET; j++) {
+    subsetPoints[j] = {
+      x: 0,
+      y: 0,
+      vertex: new THREE.Vertex(new THREE.Vector3(0, 0, 0))
+    };
+  }
+  orbit.subsets.push(subsetPoints);
+}
+
+var container, stats;
+var camera, scene, renderer, composer, hueValues = [];
+
+var mouseX = 0,
+    mouseY = 0;
+
+var windowHalfX = window.innerWidth / 2;
+var windowHalfY = window.innerHeight / 2;
+
+var speed = 8;
+var rotationSpeed = 0.005;
+
+
+function init() {
+
+  const sprite1 = THREE.ImageUtils.loadTexture("/lib/galaxy.png");
+
+  container = document.getElementById('portal');
+
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3 * SCALE_FACTOR);
+  camera.position.z = SCALE_FACTOR / 2;
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x000000, 0.0010);
+
+  generateOrbit();
+
+  for (var s = 0; s < NUM_SUBSETS; s++) {
+    hueValues[s] = Math.random();
+  }
+
+  // Create particle systems
+  for (var k = 0; k < NUM_LEVELS; k++) {
+    for (var s = 0; s < NUM_SUBSETS; s++) {
+
+      var geometry = new THREE.Geometry();
+      for (var i = 0; i < NUM_POINTS_SUBSET; i++) {
+        geometry.vertices.push(orbit.subsets[s][i].vertex);
+      }
+      var materials = new THREE.ParticleBasicMaterial({
+        size: (SPRITE_SIZE),
+        map: sprite1,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        transparent: true
+      });
+      materials.color.setHSV(hueValues[s], DEF_SATURATION, DEF_BRIGHTNESS);
+
+
+      var particles = new THREE.ParticleSystem(geometry, materials);
+      particles.myMaterial = materials;
+      particles.myLevel = k;
+      particles.mySubset = s;
+      particles.position.x = 0;
+      particles.position.y = 0;
+      particles.position.z = -LEVEL_DEPTH * k - (s * LEVEL_DEPTH / NUM_SUBSETS) + SCALE_FACTOR / 2;
+      particles.needsUpdate = 0;
+      scene.add(particles);
+
+    }
+  }
+
+  // Setup renderer and effects
+  renderer = new THREE.WebGLRenderer({
+    clearColor: 0x000000,
+    clearAlpha: 1,
+    antialias: false
+  });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  container.appendChild(renderer.domElement);
+
+  // Setup listeners
+  document.addEventListener('mousemove', onDocumentMouseMove, false);
+  document.addEventListener('touchstart', onDocumentTouchStart, false);
+  document.addEventListener('touchmove', onDocumentTouchMove, false);
+  document.addEventListener('keydown', onKeyDown, false);
+  window.addEventListener('resize', onWindowResize, false);
+
+  // Schedule orbit regeneration
+  setInterval(updateOrbit, 3000);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  render();
+}
+
+function render() {
+
+  if (camera.position.x >= -CAMERA_BOUND && camera.position.x <= CAMERA_BOUND) {
+    camera.position.x += (mouseX - camera.position.x) * 0.05;
+    if (camera.position.x < -CAMERA_BOUND) camera.position.x = -CAMERA_BOUND;
+    if (camera.position.x > CAMERA_BOUND) camera.position.x = CAMERA_BOUND;
+  }
+  if (camera.position.y >= -CAMERA_BOUND && camera.position.y <= CAMERA_BOUND) {
+    camera.position.y += (-mouseY - camera.position.y) * 0.05;
+    if (camera.position.y < -CAMERA_BOUND) camera.position.y = -CAMERA_BOUND;
+    if (camera.position.y > CAMERA_BOUND) camera.position.y = CAMERA_BOUND;
+  }
+
+  camera.lookAt(scene.position);
+
+  for (i = 0; i < scene.objects.length; i++) {
+    scene.objects[i].position.z += speed;
+    scene.objects[i].rotation.z += rotationSpeed;
+    if (scene.objects[i].position.z > camera.position.z) {
+      scene.objects[i].position.z = -1 * (NUM_LEVELS - 1) * LEVEL_DEPTH;
+      if (scene.objects[i].needsUpdate == 1) {
+        scene.objects[i].geometry.__dirtyVertices = true;
+        scene.objects[i].myMaterial.color.setHSV(hueValues[scene.objects[i].mySubset], DEF_SATURATION, DEF_BRIGHTNESS);
+        scene.objects[i].needsUpdate = 0;
+      }
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+///////////////////////////////////////////////
+// Hopalong Orbit Generator
+///////////////////////////////////////////////
+function updateOrbit() {
+  generateOrbit();
+  for (var s = 0; s < NUM_SUBSETS; s++) {
+    hueValues[s] = Math.random();
+  }
+  for (i = 0; i < scene.objects.length; i++) {
+    scene.objects[i].needsUpdate = 1;
+  }
+
+}
+
+function generateOrbit() {
+  var x, y, z, x1;
+  var idx = 0;
+
+  prepareOrbit();
+
+  // Using local vars should be faster
+  var al = a;
+  var bl = b;
+  var cl = c;
+  var dl = d;
+  var el = e;
+  var subsets = orbit.subsets;
+  var num_points_subset_l = NUM_POINTS_SUBSET;
+  var num_points_l = NUM_POINTS;
+  var scale_factor_l = SCALE_FACTOR;
+
+  var xMin = 0,
+      xMax = 0,
+      yMin = 0,
+      yMax = 0;
+  var choice;
+  choice = Math.random();
+
+  for (var s = 0; s < NUM_SUBSETS; s++) {
+
+    // Use a different starting point for each orbit subset
+    x = s * .005 * (0.5 - Math.random());
+    y = s * .005 * (0.5 - Math.random());
+
+    var curSubset = subsets[s];
+
+    for (var i = 0; i < num_points_subset_l; i++) {
+
+      // Iteration formula (generalization of the Barry Martin's original one)
+
+
+      if (choice < 0.5) {
+        z = (dl + (Math.sqrt(Math.abs(bl * x - cl))));
+      } else if (choice < 0.75) {
+        z = (dl + Math.sqrt(Math.sqrt(Math.abs(bl * x - cl))));
+
+      } else {
+        z = (dl + Math.log(2 + Math.sqrt(Math.abs(bl * x - cl))));
+      }
+
+      if (x > 0) {
+        x1 = y - z;
+      } else if (x == 0) {
+        x1 = y;
+      } else {
+        x1 = y + z;
+      }
+      y = al - x;
+      x = x1 + el;
+
+      curSubset[i].x = x;
+      curSubset[i].y = y;
+
+      if (x < xMin) {
+        xMin = x;
+      } else if (x > xMax) {
+        xMax = x;
+      }
+      if (y < yMin) {
+        yMin = y;
+      } else if (y > yMax) {
+        yMax = y;
+      }
+
+      idx++;
+    }
+  }
+
+  var scaleX = 2 * scale_factor_l / (xMax - xMin);
+  var scaleY = 2 * scale_factor_l / (yMax - yMin);
+
+  orbit.xMin = xMin;
+  orbit.xMax = xMax;
+  orbit.yMin = yMin;
+  orbit.yMax = yMax;
+  orbit.scaleX = scaleX;
+  orbit.scaleY = scaleY;
+
+  // Normalize and update vertex data
+  for (var s = 0; s < NUM_SUBSETS; s++) {
+    var curSubset = subsets[s];
+    for (var i = 0; i < num_points_subset_l; i++) {
+      curSubset[i].vertex.position.x = scaleX * (curSubset[i].x - xMin) - scale_factor_l;
+      curSubset[i].vertex.position.y = scaleY * (curSubset[i].y - yMin) - scale_factor_l;
+    }
+  }
+}
+
+function prepareOrbit() {
+  shuffleParams();
+  orbit.xMin = 0;
+  orbit.xMax = 0;
+  orbit.yMin = 0;
+  orbit.yMax = 0;
+}
+
+function shuffleParams() {
+  a = A_MIN + Math.random() * (A_MAX - A_MIN);
+  b = B_MIN + Math.random() * (B_MAX - B_MIN);
+  c = C_MIN + Math.random() * (C_MAX - C_MIN);
+  d = D_MIN + Math.random() * (D_MAX - D_MIN);
+  e = E_MIN + Math.random() * (E_MAX - E_MIN);
+}
+
+///////////////////////////////////////////////
+// Event listeners
+///////////////////////////////////////////////
+function onDocumentMouseMove(event) {
+  mouseX = event.clientX - windowHalfX;
+  mouseY = event.clientY - windowHalfY;
+}
+
+function onDocumentTouchStart(event) {
+  if (event.touches.length == 1) {
+    event.preventDefault();
+    mouseX = event.touches[0].pageX - windowHalfX;
+    mouseY = event.touches[0].pageY - windowHalfY;
+  }
+}
+
+function onDocumentTouchMove(event) {
+  if (event.touches.length == 1) {
+    event.preventDefault();
+    mouseX = event.touches[0].pageX - windowHalfX;
+    mouseY = event.touches[0].pageY - windowHalfY;
+  }
+}
+
+function onWindowResize(event) {
+  windowHalfX = window.innerWidth / 2;
+  windowHalfY = window.innerHeight / 2;
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function onKeyDown(event) {
+  if (event.keyCode == 38 && speed < 20) speed += .5;
+  else if (event.keyCode == 40 && speed > 0) speed -= .5;
+  else if (event.keyCode == 37) rotationSpeed += .001;
+  else if (event.keyCode == 39) rotationSpeed -= .001;
+  else if (event.keyCode == 72 || event.keyCode == 104) toggleVisuals();
+}
+
+function showHideAbout() {
+  if (document.getElementById('about').style.display == "block") {
+    document.getElementById('about').style.display = "none";
+  } else {
+    document.getElementById('about').style.display = "block";
+  }
+}
+
+function toggleVisuals() {
+  if (VISUALS_VISIBLE) {
+    document.getElementById('plusone').style.display = 'none';
+    document.getElementById('tweet').style.display = 'none';
+    document.getElementById('fb').style.display = 'none';
+    document.getElementById('aboutlink').style.display = 'none';
+    document.getElementById('about').style.display = 'none';
+    document.getElementById('info').style.display = 'none';
+    document.getElementById('chaosnebula').style.display = 'none';
+    renderer.domElement.style.cursor = "none";
+    VISUALS_VISIBLE = false;
+  } else {
+    document.getElementById('plusone').style.display = 'block';
+    document.getElementById('tweet').style.display = 'block';
+    document.getElementById('fb').style.display = 'block';
+    document.getElementById('aboutlink').style.display = 'block';
+    document.getElementById('info').style.display = 'block';
+    document.getElementById('chaosnebula').style.display = 'block';
+    renderer.domElement.style.cursor = "";
+    VISUALS_VISIBLE = true;
+  }
+}
+
+
+
+init();
+animate();
+
+
+function fiberyPlantCells() {
+  B_MIN = B_MAX = 30;
+  A_MIN = A_MAX = 2;
+  C_MIN = C_MAX = 3;
+
+  D_MIN = D_MAX = 1;
+
+  E_MIN = E_MAX = 0;
+
+  SCALE_FACTOR = 1600;
+}
+
+
+function sparseness() {
+  B_MIN = B_MAX = 300;
+  A_MIN = A_MAX = 2;
+  C_MIN = C_MAX = 3;
+
+  D_MIN = D_MAX = 1;
+
+  E_MIN = E_MAX = 0;
+
+  SCALE_FACTOR = 3000;
+}
+
+function spinalColumn() {
+  SCALE_FACTOR = 400;
+  A_MIN = A_MAX = 200;
+  B_MIN = B_MAX = 300;
+  C_MIN = C_MAX = 3;
+
+  D_MIN = D_MAX = 1;
+
+  E_MIN = E_MAX = 0;
+}
+
+function boxUniverse() {
+  const a = 200,
+        b = 0,
+        c = 3,
+        d = 0,
+        e = 0;
+  setAll(a, b, c, d, e);
+  SCALE_FACTOR = 400;
+}
+
+function setAll(a, b, c, d, e) {
+  setA(a);
+  setB(b);
+  setC(c);
+  setD(d);
+  setE(e);
+}
+
+function setA(x) {
+  A_MIN = A_MAX = x;
+}
+
+function setB(x) {
+  B_MIN = B_MAX = x;
+}
+
+function setC(x) {
+  C_MIN = C_MAX = x;
+}
+
+function setD(x) {
+  D_MIN = D_MAX = x;
+}
+
+function setE(x) {
+  E_MIN = E_MAX = x;
+}
+
+function ejectConfig() {
+  return {
+    A_MIN,
+    A_MAX,
+    B_MIN,
+    B_MAX,
+    C_MIN,
+    C_MAX,
+    D_MIN,
+    D_MAX,
+    E_MIN,
+    E_MAX
+  }
+}
+
+
+function recolor() {
+  redoHues();
+  for (i = 0; i < scene.objects.length; i++) {
+    //scene.objects[i].geometry.__dirtyVertices = true;
+    scene.objects[i].myMaterial.color.setHSV(hueValues[scene.objects[i].mySubset], DEF_SATURATION, DEF_BRIGHTNESS);
+  }
+}
+
+function redoHues() {
+  for (var i = 0; i < NUM_SUBSETS; i++) {
+    hueValues[i] = Math.random();
+  }
+}
+
+let BEAT_INTERVAL = 50;
+function beat() {
+  let nearestIndex = findNearest();
+  let i = nearestIndex;
+  let old_i = -1;
+  let oldColor = new THREE.Color();
+  let oldSize = 5;
+  let intervalId = setInterval(() => {
+    if (old_i >= 0) {
+      scene.objects[old_i].myMaterial.color.copy(oldColor);
+      scene.objects[old_i].myMaterial.size = SPRITE_SIZE;
+    }
+    oldColor.copy(scene.objects[i].myMaterial.color);
+
+    scene.objects[i].myMaterial.size = 50;
+    scene.objects[i].myMaterial.color.setHSV(hueValues[scene.objects[i].mySubset], 0.2, 1);
+    old_i = i;
+    i = (i + 1) % scene.objects.length;
+    if (i === nearestIndex) {
+      
+      scene.objects[old_i].myMaterial.color.copy(oldColor);
+      scene.objects[old_i].myMaterial.size = SPRITE_SIZE;
+      clearInterval(intervalId);
+    }
+  }, BEAT_INTERVAL);
+
+}
+
+function findNearest() {
+  let nearest;
+  let z;
+  let bestZ = 0;
+  let best = 0;
+  for (i = 0; i < scene.objects.length; i++) {
+    z = scene.objects[i].position.z;
+    if (z > bestZ) {
+      bestZ = z;
+      best = i;
+
+    }
+
+    if (bestZ > 0 && z < 0) {
+      // we have looped around to the back!
+      return best;
+    }
+  }
+
+  return 0;
+}
+
+const reticle = $('#Reticle')[0];
+const centerPiece = $('#Centerpiece_Frame')[0];
+
+function rotate(n,x) {
+  n.style['transform'] = `rotate(${x}deg)`;
+}
+function wobble() {
+  if (Rnd() > 0.8) {
+    let x = Rnd() * 360;
+    rotate(reticle, x);
+  }
+
+  if (Rnd() > 0.7) {
+    let x = Rnd() * 360;
+    rotate(centerPiece, x);
+  }
+}
+
+setInterval(wobble, 1000);
