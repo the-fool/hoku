@@ -1,7 +1,7 @@
 let MODE = 0;
 
 let bpm = 100;
-const bpmToWarpSpeed = d3.scaleLinear().domain([80, 260]).range([0.01, 0.8]).clamp(true);
+const bpmToWarpSpeed = d3.scaleLinear().domain([80, 260]).range([1, 30]).clamp(true);
 
 // setup aliases
 const Rnd = Math.random,
@@ -11,46 +11,80 @@ const Rnd = Math.random,
 const width = window.innerWidth;
 const height = window.innerHeight;
 
-/*
-* AUTHOR: Iacopo Sassarini
-*/
+const reticle = $('#Reticle')[0];
+const centerPiece = $('#Centerpiece_Frame')[0];
 
 if (!Detector.webgl) Detector.addGetWebGLMessage();
 
-var VISUALS_VISIBLE = true;
+let VISUALS_VISIBLE;
 
-var SCALE_FACTOR = 1500;
-var CAMERA_BOUND = 20000;
+let SCALE_FACTOR;
+let CAMERA_BOUND;
 
-var NUM_POINTS_SUBSET = 32000;
-var NUM_SUBSETS = 7;
-var NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
+let NUM_POINTS_SUBSET;
+let NUM_SUBSETS;
+let NUM_POINTS;
 
-var NUM_LEVELS = 7;
-var LEVEL_DEPTH = 1600;
+let NUM_LEVELS;
+let LEVEL_DEPTH;
 
-var DEF_BRIGHTNESS = 1;
-var DEF_SATURATION = 0.8;
-let ORBIT_REGEN_COOLDOWN = 3000;
-var SPRITE_SIZE = 5;
+let DEF_BRIGHTNESS;
+let DEF_SATURATION;
+let ORBIT_REGEN_COOLDOWN;
+let SPRITE_SIZE;
 
 // Orbit parameters constraints
-var A_MIN = -30;
-var A_MAX = 30;
-var B_MIN = .2;
-var B_MAX = 1.8;
-var C_MIN = 5;
-var C_MAX = 17;
-var D_MIN = 0;
-var D_MAX = 10;
-var E_MIN = 0;
-var E_MAX = 12;
+let A_MIN;
+let A_MAX;
+let B_MIN;
+let B_MAX;
+let C_MIN;
+let C_MAX;
+let D_MIN;
+let D_MAX;
+let E_MIN;
+let E_MAX;
+
+let speed = 8;
+let rotationSpeed = 0.005;
+
+function defaultify() {
+  VISUALS_VISIBLE = true;
+
+  SCALE_FACTOR = 1500;
+  CAMERA_BOUND = 20000;
+
+  NUM_POINTS_SUBSET = 30000;
+  NUM_SUBSETS = 7;
+  NUM_POINTS = NUM_POINTS_SUBSET * NUM_SUBSETS;
+
+  NUM_LEVELS = 4;
+  LEVEL_DEPTH = 1600;
+
+  DEF_BRIGHTNESS = 1;
+  DEF_SATURATION = 0.8;
+  ORBIT_REGEN_COOLDOWN = 3000;
+  SPRITE_SIZE = 5;
+
+  // Orbit parameters constraints
+  A_MIN = -30;
+  A_MAX = 30;
+  B_MIN = .2;
+  B_MAX = 1.8;
+  C_MIN = 5;
+  C_MAX = 17;
+  D_MIN = 0;
+  D_MAX = 10;
+  E_MIN = 0;
+  E_MAX = 12;
+}
+defaultify();
 
 // Orbit parameters
-var a, b, c, d, e;
+let a, b, c, d, e;
 
 // Orbit data
-var orbit = {
+let orbit = {
   subsets: [],
   xMin: 0,
   xMax: 0,
@@ -60,20 +94,7 @@ var orbit = {
   scaleY: 0
 };
 
-// Initialize data points
-for (var i = 0; i < NUM_SUBSETS; i++) {
-  var subsetPoints = [];
-  for (var j = 0; j < NUM_POINTS_SUBSET; j++) {
-    subsetPoints[j] = {
-      x: 0,
-      y: 0,
-      vertex: new THREE.Vertex(new THREE.Vector3(0, 0, 0))
-    };
-  }
-  orbit.subsets.push(subsetPoints);
-}
-
-var container, stats;
+var container;
 var camera, scene, renderer, composer, hueValues = [];
 
 var mouseX = 0,
@@ -81,12 +102,22 @@ var mouseX = 0,
 
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
-
-var speed = 8;
-var rotationSpeed = 0.005;
+let i, j;
 
 
 function init() {
+  // Initialize data points
+  for (i = 0; i < NUM_SUBSETS; i++) {
+    var subsetPoints = [];
+    for (j = 0; j < NUM_POINTS_SUBSET; j++) {
+      subsetPoints[j] = {
+        x: 0,
+        y: 0,
+        vertex: new THREE.Vertex(new THREE.Vector3(0, 0, 0))
+      };
+    }
+    orbit.subsets.push(subsetPoints);
+  }
 
   const sprite1 = THREE.ImageUtils.loadTexture("/lib/galaxy.png");
 
@@ -98,11 +129,8 @@ function init() {
   scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x000000, 0.0010);
 
+  redoHues();
   generateOrbit();
-
-  for (var s = 0; s < NUM_SUBSETS; s++) {
-    hueValues[s] = Math.random();
-  }
 
   // Create particle systems
   for (var k = 0; k < NUM_LEVELS; k++) {
@@ -131,7 +159,6 @@ function init() {
       particles.position.z = -LEVEL_DEPTH * k - (s * LEVEL_DEPTH / NUM_SUBSETS) + SCALE_FACTOR / 2;
       particles.needsUpdate = 0;
       scene.add(particles);
-
     }
   }
 
@@ -387,8 +414,6 @@ function toggleVisuals() {
   }
 }
 
-
-
 init();
 animate();
 
@@ -516,7 +541,7 @@ function beat() {
     old_i = i;
     i = (i + 1) % scene.objects.length;
     if (i === nearestIndex) {
-      
+
       scene.objects[old_i].myMaterial.color.copy(oldColor);
       scene.objects[old_i].myMaterial.size = SPRITE_SIZE;
       clearInterval(intervalId);
@@ -547,8 +572,6 @@ function findNearest() {
   return 0;
 }
 
-const reticle = $('#Reticle')[0];
-const centerPiece = $('#Centerpiece_Frame')[0];
 
 function rotate(n,x) {
   n.style['transform'] = `rotate(${x}deg)`;
