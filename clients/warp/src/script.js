@@ -119,7 +119,7 @@ function init() {
     orbit.subsets.push(subsetPoints);
   }
 
-  const sprite1 = THREE.ImageUtils.loadTexture("/lib/galaxy.png");
+  const sprite1 = THREE.ImageUtils.loadTexture("/lib/poppy.jpg");
 
   container = document.getElementById('portal');
 
