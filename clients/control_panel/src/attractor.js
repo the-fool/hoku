@@ -211,51 +211,51 @@ function AttractorWidget(container) {
     const _canvas = $('<canvas></canvas>');
     container.append(_canvas);
     canvas = container.find('canvas').get()[0];
-    const attractor = self.attractor = new Attractor();
+    self.attractor = attractor = new Attractor();
     gui = new DAT.GUI({
       autoPlace: false
     });
 
-    gui.add(self.attractor, 'pointCount', 10000, 300000, 10000).name('Point Count').onChange(function(newPointCount) {
-      self.attractor.setPointCount(newPointCount);
+    gui.add(attractor, 'pointCount', 10000, 300000, 10000).name('Point Count').onChange(function(newPointCount) {
+      attractor.setPointCount(newPointCount);
     });
-    gui.add(self.attractor, 'scale', 0.05, 2.5, 0.05).name('Scale').onChange(function(newScale) {
-      self.attractor.setScale(newScale);
+    gui.add(attractor, 'scale', 0.05, 2.5, 0.05).name('Scale').onChange(function(newScale) {
+      attractor.setScale(newScale);
     });
     var min = -5,
         max = 5,
         step = 0.1;
-    gui.add(self.attractor, 'A', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('A', newValue);
+    gui.add(attractor, 'A', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('A', newValue);
     }).listen();
-    gui.add(self.attractor, 'B', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('B', newValue);
+    gui.add(attractor, 'B', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('B', newValue);
     }).listen();
-    gui.add(self.attractor, 'C', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('C', newValue);
+    gui.add(attractor, 'C', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('C', newValue);
     }).listen();
-    gui.add(self.attractor, 'D', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('D', newValue);
+    gui.add(attractor, 'D', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('D', newValue);
     }).listen();
-    gui.add(self.attractor, 'E', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('E', newValue);
+    gui.add(attractor, 'E', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('E', newValue);
     }).listen();
-    gui.add(self.attractor, 'F', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('F', newValue);
+    gui.add(attractor, 'F', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('F', newValue);
     }).listen();
-    gui.add(self.attractor, 'G', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('G', newValue);
+    gui.add(attractor, 'G', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('G', newValue);
     }).listen();
-    gui.add(self.attractor, 'H', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('H', newValue);
+    gui.add(attractor, 'H', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('H', newValue);
     }).listen();
-    gui.add(self.attractor, 'I', min, max, step).onChange(function(newValue) {
-      self.attractor.setFactor('I', newValue);
+    gui.add(attractor, 'I', min, max, step).onChange(function(newValue) {
+      attractor.setFactor('I', newValue);
     }).listen();
 
     container.get()[0].appendChild(gui.domElement);
     initWebGL(canvas);
-    attractor.setSpecies(self.attractor.DEFAULT);
+    attractor.setSpecies(attractor.DEFAULT);
 
     function startDrag(e) {
       dragging = true;
@@ -272,10 +272,10 @@ function AttractorWidget(container) {
         mouseY = e.pageY;
       }
     }
-    canvas.mousedown(startDrag);
-    canvas.mouseup(stopDrag);
-    canvas.mouseout(stopDrag);
-    canvas.mousemove(function(e) {
+    $(canvas).mousedown(startDrag);
+    $(canvas).mouseup(stopDrag);
+    $(canvas).mouseout(stopDrag);
+    $(canvas).mousemove(function(e) {
       if (dragging) {
         rotAccY = (e.pageX - mouseX) % 360;
         rotAccX = (e.pageY - mouseY) % 360;
