@@ -1,4 +1,5 @@
-const svg = d3.select("svg"),
+$(function() {
+  const svg = d3.select('#bpm-widget').append('svg').attrs({width: 800, height: 500}),
       margin = {
         right: 25,
         left: 25,
@@ -9,7 +10,6 @@ const svg = d3.select("svg"),
       height = +svg.attr("height"),
       bpmWidth = width / 2,
       bpmHeight = height / 2;
-
 let bpm = 120;
 
 const wsUrl = path =>`ws://${window.location.hostname}:7700/${path}`;
@@ -82,7 +82,8 @@ function makeBpmWidget() {
 
     function onDragBpm() {
       const newVal = bpmScale(bpmScale.invert(d3.event.y));
-      bpmHandle.attr('cy', newVal);
+      bpmHandle.attr('height', bpmHeight - newVal);
+      bpmHandle.attr('y', newVal);
 
       if (newVal !== mostRecentBpmChange) {
         mostRecentBpmChange = newVal;
@@ -148,6 +149,26 @@ function makeLinearScale(maxRange, domain = [0, 127]) {
 function makeTrack(parentGroup, scale, onDrag, isVertical = true) {
   const axis = isVertical ? 'y' : 'x';
 
+  parentGroup.append("rect")
+    .attr("class", "track")
+    .attr(`x`, 0)
+    .attr('width', 40)
+    .attr('y', 0)
+    .attr('height', scale.range()[1])
+    .select(function() {
+      return this.parentNode.appendChild(this.cloneNode(true));
+    })
+    .attr("class", "track-inset")
+    .select(function() {
+      return this.parentNode.appendChild(this.cloneNode(true));
+    })
+    .attr("class", "track-overlay")
+    .call(d3.drag()
+          .on("start.interrupt", function() {
+            parentGroup.interrupt();
+          })
+          .on("start drag", onDrag));
+  /*
   parentGroup.append("line")
     .attr("class", "track")
     .attr(`${axis}1`, scale.range()[0])
@@ -165,12 +186,13 @@ function makeTrack(parentGroup, scale, onDrag, isVertical = true) {
             parentGroup.interrupt();
           })
           .on("start drag", onDrag));
+          */
 }
 
 function makeHandle(parentGroup) {
-  return parentGroup.insert("circle", ".track-overlay")
+  return parentGroup.insert("rect", ".track-overlay")
     .attr("class", "handle")
-    .attr("r", 9);
+    .attrs({x: 0, y: 0, width: 30, height: bpmHeight});
 }
 
 function makeScaleWidget() {
@@ -181,7 +203,6 @@ function makeScaleWidget() {
   };
 }
 
-$(function() {
   makeBpmWidget();
   makeScaleWidget();
 });
