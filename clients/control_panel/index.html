@@ -1,7 +1,6 @@
 <html>
 
   <head>
-    <link rel="stylesheet" href="./public/style.css">
     <script src="/lib/jquery.js"></script>
 
     <script src="/lib/sylvester.js"></script>
@@ -13,12 +12,114 @@
     <script src="/lib/glUtils.js"></script>
     <script src="/lib/data.gui.min.js"></script>
     <script src="./public/attractor.js"></script>
+    <script src="./public/slider.js"></script>
+
+    <link rel="stylesheet" href="./public/ui.css">
+    <link rel="stylesheet" href="./public/style.css">
+
   </head>
 
   <body>
-    <div id="bpm-widget"></div>
-    <div id="instruments-widget"></div>
+    <main>
+      <div id="top" class="row">
+        <div id="bpm-widget" class="widget">
+          <h1>SPEED</h1>
+        </div>
+
+
+        <div id="nav-widget" class="widget">
+          <h1>BEARING</h1>
+        </div>
+
+        <div id="beat-widget" class="widget">
+          <h1>RHYTHM</h1>
+          <div class="controls">
+            <div class="col families">
+              <label class="sci-ui radio">Petiole
+                <input type="radio" checked="checked" name="radio" value="0">
+                <span class="checkmark"></span>
+              </label>
+              <label class="sci-ui radio">Calyx
+                <input type="radio" name="radio" value="1">
+                <span class="checkmark"></span>
+              </label>
+              <label class="sci-ui radio">Anther
+                <input type="radio" name="radio" value="2">
+                <span class="checkmark"></span>
+              </label>
+              <label class="sci-ui radio">O'Keefe
+                <input type="radio" name="radio" value="3">
+                <span class="checkmark"></span>
+              </label>
+            </div>
+            <div class="col elements sci-ui">
+              <a class="button outline">thump</a>
+              <a class="button outline">zweep</a>
+              <a class="button outline">chick</a>
+              <a class="button outline">fwush</a>
+            </div>
+
+            <div class="col reverb">
+              <svg height="300px" width="100px"><g></g></svg>
+            </div>
+
+
+          </div>
+        </div>
+      </div>
+      <div id="bot" class="row">
+
+        <div id="synth-widget" class="widget">
+
+          <div id="outer" class="single-synth">
+            <h1>Stamen</h1>
+
+            <div class="synth-viewer">
+              <div class="left">
+
+
+                <div class="attractor"></div>
+
+                <div class="log"></div>
+              </div>
+
+              <div class="right">
+                <div class="controls">
+
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <div id="inner" class="single-synth">
+            <h1>Pistil</h1>
+
+            <div class="synth-viewer">
+              <div class="left">
+
+
+                <div class="attractor"></div>
+
+                <div class="log"></div>
+              </div>
+
+              <div class="right">
+                <div class="controls">
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </div> <!-- End Synth -->
+      </div>      <!-- End Bot -->
+    </main>
+
+
+    <script src="./public/synth-widget.js"></script>
+    <script src="./public/bpm-widget.js"></script>
+    <script src="./public/beat-widget.js"></script>
     <script src="./public/script.js"></script>
-    <script src="./public/instruments-widget.js"></script>
   </body>
+
 </html>

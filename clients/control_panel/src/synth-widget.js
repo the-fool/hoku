@@ -1,4 +1,105 @@
-$(function() {
+function makeSynthWidget(node) {
+  const labels = ['Vol', 'Dist', 'Rev', 'Filt'];
+  const makeDatum = (name) => ({
+    name,
+    values: [0.1, 0.5, 0.25, 0.75].map((value, i) => ({
+      value,
+      label: labels[i]
+    }))
+  });
+
+
+  ['outer', 'inner'].forEach(name => {
+
+    const datum = makeDatum(name);
+    const attractorContainer = node.find(`#${name} .attractor`).first();
+    const controlsContainer = node.find(`#${name} .controls`).first();
+
+
+    const a = new AttractorWidget(attractorContainer, controlsContainer);
+
+    a.initialize();
+
+    window[name] = a;
+  });
+}
+
+function makeSynthWidget1(node) {
+  // input: jq elm
+
+  const labels = ['Vol', 'Dist', 'Rev', 'Filt'];
+  const datum = (name) => ({
+    name,
+    values: [0.1, 0.5, 0.25, 0.75].map((value, i) => ({
+      value,
+      label: labels[i]
+    }))
+  });
+  const data = [datum('outer'), datum('inner')];
+
+  const width = 600,
+        height = 400;
+  const split = 50;
+  const sliderGroupWidth = width / 2 - 50;
+  const sliderGutter = 20;
+  const sliderWidth = sliderGroupWidth / 4 - sliderGutter;
+
+  const gutter = width / 4 / 2;
+
+  const scaleY = d3.scaleLinear()
+        .domain([0, 1])
+        .rangeRound([height, 0]);
+
+  const scaleX = d3.scaleLinear()
+        .domain([0, data[0].values.length])
+        .rangeRound([0, width]);
+
+
+
+  const svg = d3.select(node.get()[0]).append('svg')
+        .attrs({
+          width: width * 2,
+          height
+        });
+
+  const g = svg.append('g').attr('id', 'synths');
+  const instrumentGroups = g.selectAll('.instrument')
+        .data(data)
+        .enter()
+        .append('g')
+        .attr('id', d => `inst-${d.name}`)
+        .attr('transform', (d, i) => `translate(${i * (width + split)}, 0)`);
+
+
+  data.forEach((d, index) => {
+    const a = appendAttractor(index);
+    const inst = d3.select(`#inst-${d.name}`);
+    d.values.forEach((_, i) => {
+      const x = i * (sliderWidth + sliderGutter);
+      makeSlider(inst, x, sliderWidth, height, x => console.log('wat'));
+    });
+  });
+
+
+  function appendAttractor(index) {
+    const cont = $('<div></div>').attr('id', `container-${index}`).attr('class', 'attractor-container');
+    node.append(cont);
+    const a = new AttractorWidget(cont);
+    a.initialize();
+    return a;
+  }
+
+
+
+}
+
+
+
+
+
+
+
+function makeInstrumentWidget() {
   const labels = ['Vol', 'Dist', 'Rev', 'Filt'];
   const datum = (name) => ({
     name,
@@ -24,7 +125,10 @@ $(function() {
 
     function makeInstrument(data, index) {
       const svg = d3.select('#instruments-widget').append('svg')
-            .attrs({width, height});
+            .attrs({
+              width,
+              height
+            });
       const g = svg.append('g').attr('class', 'instrument');
       g
         .append('rect')
@@ -88,9 +192,6 @@ $(function() {
         const d = d3.select(this).select('.selection');
 
         d.datum().value = d0[0]; // Change the value of the original data
-
-
-        console.log(d.data())
         update();
       }
 
@@ -105,5 +206,4 @@ $(function() {
   }
 
   init();
-
-});
+};

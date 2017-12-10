@@ -34,15 +34,22 @@ def main():
 
     # instruments = {}
 
+    default_rhythm = [-1] * 16
     # make COLOR_MONO_SEQUENCER
-    cms = CMS(rhythm=[-1] * 16)
+    cms1 = CMS(rhythm=default_rhythm)
+
+    cms2 = CMS(rhythm=default_rhythm)
 
     scale_cube = ScaleCube()
-    # make MONO_SEQUENCER
-    notes_1 = [-1] * 16  # the notes in the sequence, a bar of rests
 
-    mono_seq_1 = MonoSequencer(notes_1, instruments=[])
-    mono_seq_2 = MonoSequencer(cms.notes, instruments=[])
+    # make MONO_SEQUENCER
+
+    # fast
+    mono_seq_1 = MonoSequencer(cms2.notes, instruments=[])
+
+    # slow
+    slow_factor = 2
+    mono_seq_2 = MonoSequencer(cms1.notes, instruments=[], time_multiplier= 16 / slow_factor)
 
     # make CLOCKER
     clocker = Clocker()
@@ -53,7 +60,7 @@ def main():
     # Set up metronome
     metronome_cbs = [
         clocker.metronome_cb, mono_seq_1.on_beat, mono_seq_2.on_beat,
-        cms.metro_cb
+        cms2.metro_cb, cms1.metro_cb
     ]
     metronome = Metronome(metronome_cbs, starting_bpm)
 
@@ -66,7 +73,8 @@ def main():
         'scale': (None, scale_cube.ws_msg_producer),
         # 'particles': (particles_ws_consumer, None),
         'metronome_changer': (metro_changer.ws_consumer, metro_changer.obs),
-        'colormonosequencer': (cms.ws_consumer, cms.obs)
+        'cms1': (cms1.ws_consumer, cms1.obs),
+        'cms2': (cms2.ws_consumer, cms2.obs)
     }
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
@@ -77,7 +85,8 @@ def main():
 
     # Set Up mbits
     gupaz_cb = make_gupaz_uart_cb(scale_cube, loop)
-    setup_mbits(gupaz_cb)
+    # setup_mbits(gupaz_cb)
+
     # and run the dbus loop
     t = threading.Thread(target=run_dbus_loop)
     t.start()
@@ -113,6 +122,7 @@ def microbit_init(address):
 
 
 def setup_mbits(gupaz_uart_cb):
+
     gupaz = microbit_init(MBIT_GUPAZ)
 
     gupaz.subscribe_uart(gupaz_uart_cb)

@@ -1,23 +1,19 @@
 $bk: #000;
-
+$bar: #00a8f7;
+$bar-bg: #202020;
 html, body {
   margin: 0;
   border: 0;
   height: 100%;
   width: 100%;
+
 }
 
 body {
   background-color: $bk;
 }
 
-.indicator-light {
-  fill: green;
 
-  &.active {
-    fill: red;
-  }
-}
 
 .ticks {
   font: 10px sans-serif;
@@ -36,11 +32,6 @@ body {
   stroke-width: 2px;
 }
 
-.track-inset {
-  stroke: white;
-  fill-opacity: 0;
-  stroke-width: 2px;
-}
 
 .track-overlay {
   pointer-events: stroke;
@@ -49,8 +40,134 @@ body {
   cursor: crosshair;
 }
 
-.handle {
-  fill: #fff;
+svg {
+  .handle {
+    fill: $bar;
+  }
+  .track-inset {
+    stroke: 0;
+    fill-opacity: 1;
+    fill: $bar-bg; 
+  }
+}
+
+.guidat {
+  width: 100% !important;
+
+  .guidat-toggle {
+    display: none !important;
+  }
+
+  .guidat-controller {
+    text-transform: uppercase;
+    border-left: none;
+    .guidat-slider-bg {
+      width: 55%;
+    }
+
+
+    &.number input {
+      display: none !important;
+    }
+  }
+}
+
+h1 {
+  font-size: 20px;
+  color: white;
+  margin-top: 0;
+  text-transform: uppercase;
+}
+
+main {
+  width: 1300px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  .row {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    flex-direction: row;
+  }
+}
+
+.widget {
+  padding: 15px;
+  border: 1px solid white;
+  border-radius: 4px;
+  flex: 1;
+}
+
+#bpm-widget {
+  max-width: 300px;
+
+  .indicator-light {
+    fill: transparent;
+
+    &.active {
+      fill: red;
+    }
+  }
+}
+
+#beat-widget {
+  label {
+    color: white;
+    text-transform: uppercase;
+  }
+
+  .controls {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .elements {
+      .button {
+        &:not(:last-child) {
+          margin-bottom: 10px;
+        }
+      }
+    }
+  }
+}
+#synth-widget {
+  display: flex;
+  justify-content: space-between;
+
+  .single-synth {
+    width: 600px;
+  }
+
+  .synth-viewer {
+    display: flex;
+    flex-direction: row;
+
+
+    .left {
+      width: 250px;
+    }
+
+    .right {
+      width: 350px;
+    }
+
+    .attractor {
+      overflow: hidden;
+      text-align: center;
+      width: 200px;
+      border: 2px solid white;
+      padding: 2px;
+      border-radius: 10px;
+    }
+  }
 }
 
 
