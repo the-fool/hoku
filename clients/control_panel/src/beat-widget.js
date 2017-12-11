@@ -1,4 +1,5 @@
-function makeBeatWidget(node) {
+function makeBeatWidget(node,  drumWs) {
+
   const data = {
     family: 0,
     elements: [true, true, true, true]
@@ -9,7 +10,7 @@ function makeBeatWidget(node) {
     const i = el.index();
     data.elements[i] = !data.elements[i];
     onChange();
-    applyStyles();
+    applyChanges();
   });
 
 
@@ -26,16 +27,28 @@ function makeBeatWidget(node) {
   }
   makeSlider(g, 5, 30, 300, onVerbChange);
 
-  function applyStyles() {
+  function applyChanges() {
     node.find('.elements .button').each(function(i) {
       const el = $(this);
       el.toggleClass('active', data.elements[i]);
     });
+
+    $(node.find('input[type=radio]')[data.family]).trigger('click');
   }
 
   function onChange() {
     // send data down ws
   }
 
-  applyStyles();
+  drumWs.onmessage = function(d) {
+    const msg = JSON.parse(d.data);
+    const family = data.family;
+    const elements = data.elements;
+    data.elements = elements;
+    data.family = family;
+
+    applyChanges();
+  };
+
+  applyChanges();
 }

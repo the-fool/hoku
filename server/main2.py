@@ -13,12 +13,14 @@ from .web_servers import ws_server_factory
 from .web_socket_clients import Clocker, MetronomeChanger,\
     ColorMonoSequencer as CMS,\
     CubeOfScaleChanger,\
-    CubeOfPatchChanger
+    CubeOfPatchChanger,\
+    DrummerChanger
 
 from .modules import Metronome,\
     MonoSequencer,\
     ScaleCube,\
-    PatchCube
+    PatchCube,\
+    Drummer
 
 import logging
 
@@ -59,6 +61,11 @@ def main():
     # make CLOCKER
     clocker = Clocker()
 
+    # make DRUMMER
+    drummer = Drummer()
+    drummer_changer = DrummerChanger(drummer=drummer)
+
+
     # make particles
     # particles_ws_consumer = particles_factory(midi_q)
 
@@ -67,7 +74,9 @@ def main():
         clocker.metronome_cb,
         mono_seq_1.on_beat,
         mono_seq_2.on_beat,
+        drummer.on_beat
     ]
+
     metronome = Metronome(metronome_cbs, starting_bpm)
 
     metro_changer = MetronomeChanger(
@@ -81,7 +90,8 @@ def main():
         'scale': (scale_changer.ws_consumer, scale_changer.obs),
         'patch': (patch_changer.ws_consumer, patch_changer.obs),
         'cms1': (cms1.ws_consumer, cms1.obs),
-        'cms2': (cms2.ws_consumer, cms2.obs)
+        'cms2': (cms2.ws_consumer, cms2.obs),
+        'drummer': (drummer_changer.ws_consumer, drummer_changer.obs)
     }
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)

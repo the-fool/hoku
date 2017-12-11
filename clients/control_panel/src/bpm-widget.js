@@ -1,4 +1,4 @@
-function makeBpmWidget(node) {
+function makeBpmWidget(node, bpmWs, clockWs) {
   // input: jquery elm
   const rawHeight = 300;
   const rawWidth = 300;
@@ -39,7 +39,6 @@ function makeBpmWidget(node) {
             transform: `translate(${margin.left},${margin.top})`
           });
 
-    const clockWs = new WebSocket(wsUrl('clocker'));
     clockWs.onmessage = function(d) {
       const data = JSON.parse(d.data);
       const tick = data.tick % 16;
@@ -47,7 +46,6 @@ function makeBpmWidget(node) {
       bpmWidget.select(`#indicator-${tick === 0 ? 15 : tick - 1}`).classed('active', false);
     };
 
-    const bpmWs = new WebSocket(wsUrl('metronome_changer'));
 
     function makeBpmIndicator() {
       const bpmIndicator = bpmWidget.append('g')
