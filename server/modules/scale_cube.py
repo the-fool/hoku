@@ -29,12 +29,14 @@ class ScaleCube:
 
     def __init__(self, scales=SCALES, init_scale=0):
         self.scales = scales
+        self.scale_index = init_scale
         self.scale = scales[init_scale]
         self.on_scale_change, self.on_scale_change_emit = observable_factory(self.scale)
         self.ws_msg_producer, self.emit = observable_factory(msg_maker(init_scale))
 
     async def set_scale(self, index):
         logging.info('Scale Cube changing to {}'.format(index))
+        self.scale_index = index
         self.scale = self.scales[index]
 
         await self.on_scale_change_emit(self.scale)

@@ -3,8 +3,6 @@ import json
 
 BASE_DO = 60
 
-ionian = [0, 2, 4, 5, 7, 9, 11]
-
 
 # OO implementation
 class ColorMonoSequencer:
@@ -23,67 +21,54 @@ class ColorMonoSequencer:
     which in turn is responsible for translating notes into midi messages
     """
 
-    def __init__(self,
-                 base_do=BASE_DO,
-                 pitchIndices=[0, 0, 0, 0],
-                 scale=ionian,
-                 rhythm=[-1] * 16):
-        self.pitchIndices = pitchIndices
+    def __init__(self, scale_cube, base_do=BASE_DO, length=16):
+
+        self.scale_cube = scale_cube
+
+        # optimization
+        self._prev_scale = scale_cube.scale
+
         self.base_do = base_do
-        self.scale = scale
-        self.length = len(rhythm)
-        self.rhythm = rhythm
-        self.real_notes = [0] * len(rhythm)
-        self.update_notes()
+        self.length = length
+
+        # the rhythm of the colors
+        # -1 is rest, 0 hold, 1+ different colors
+        self.rhythm = [-1] * length
+        self._real_notes = [base_do] * length
         self.obs, self.emit = observable_factory(self.msg_maker())
 
     def msg_maker(self):
         return json.dumps({
-            'action': 'state',
             'payload': {
                 'rhythm': self.rhythm,
-                'pitches': self.pitchIndices
             }
         })
 
     @property
     def notes(self):
-        return self.real_notes
+        # if the scale cube has been changed, we need to update notes
+        if self._prev_scale is not self.scale_cube.scale:
+            self._prev_scale = self.scale_cube.scale
+            self.update_notes()
+        return self._real_notes
 
     def update_notes(self):
         for i, n in enumerate(self.rhythm):
+
             # 0 and -1 are special cases (not mapped)
             if n > 0:
-                pitchIndex = self.pitchIndices[n - 1]
-                scaleIndex = pitchIndex % 7
-                scaleMultiplier = pitchIndex // 7
+                scaleIndex = (n - 1) % 7
+                scaleMultiplier = (n - 1) // 7
                 pitch = self.scale[scaleIndex] + self.base_do + (
                     12 * scaleMultiplier)
             else:
+                # if rhythm is 0 or -1, those special codes map to pitch
                 pitch = n
 
-            self.real_notes[i] = pitch
-
-    async def metro_cb(self, ts):
-        rhythm_index = ts % self.length
-        note_index = self.rhythm[rhythm_index]
-        msg = json.dumps({
-            'action': 'beat',
-            'payload': {
-                'rhythm_index': rhythm_index,
-                'note_index': note_index
-            }
-        })
-        await self.emit(msg)
+            self._real_notes[i] = pitch
 
     async def ws_consumer(self, kind, payload, uuid):
-
-        if kind == 'pitch':
-            index = payload['index']
-            value = payload['value']
-            self.pitchIndices[index] = value
-
-        elif kind == 'rhythm':
+        if kind == 'rhythm':
             index = payload['index']
             value = payload['value']
             self.rhythm[index] = value

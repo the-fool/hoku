@@ -1,7 +1,6 @@
 let MODE = 0;
 
 let bpm = 100;
-const bpmToWarpSpeed = d3.scaleLinear().domain([80, 260]).range([1, 30]).clamp(true);
 
 // setup aliases
 const Rnd = Math.random,
@@ -523,6 +522,7 @@ function redoHues() {
 }
 
 let BEAT_INTERVAL = 50;
+
 function beat() {
   let nearestIndex = findNearest();
   let i = nearestIndex;
@@ -546,7 +546,7 @@ function beat() {
       scene.objects[old_i].myMaterial.size = SPRITE_SIZE;
       clearInterval(intervalId);
     }
-  }, BEAT_INTERVAL);
+  }, BEAT_INTERVAL - speed / 5);
 
 }
 
@@ -573,9 +573,10 @@ function findNearest() {
 }
 
 
-function rotate(n,x) {
+function rotate(n, x) {
   n.style['transform'] = `rotate(${x}deg)`;
 }
+
 function wobble() {
   if (Rnd() > 0.8) {
     let x = Rnd() * 360;
@@ -588,4 +589,35 @@ function wobble() {
   }
 }
 
-setInterval(wobble, 1000);
+
+
+function initWs() {
+
+  const wsUrl = path => `ws://${window.location.hostname}:7700/${path}`;
+  const bpmWs = new WebSocket(wsUrl('metronome_changer'));
+
+  const bpmToWarpSpeed = d3.scaleLinear().domain([0, 1]).range([0.3, 30]).clamp(true);
+
+  bpmWs.onmessage = function(d) {
+    const data = JSON.parse(d.data);
+    speed = bpmToWarpSpeed(data.current_bpm);
+    console.log(data);
+  };
+
+  const circles = d3.selectAll('#Time_Dots circle');
+  const clockWs = new WebSocket(wsUrl('clocker'));
+  clockWs.onmessage = function(d) {
+    const data = JSON.parse(d.data);
+    const tick = data.tick % 16;
+    if (tick == 0) beat();
+    circles.each(function(d,i) {
+      const elm = d3.select(this);
+      elm.classed('active', i === tick);
+    });
+  };
+}
+
+$(function() {
+  initWs();
+  setInterval(wobble, 1000);
+});

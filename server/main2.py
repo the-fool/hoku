@@ -10,14 +10,15 @@ from .microbit import MyMicrobit
 
 from .web_servers import ws_server_factory
 
-from .web_clients import ColorMonoSequencer as CMS
-
-from .web_socket_clients import Clocker, MetronomeChanger
+from .web_socket_clients import Clocker, MetronomeChanger,\
+    ColorMonoSequencer as CMS,\
+    CubeOfScaleChanger,\
+    CubeOfPatchChanger
 
 from .modules import Metronome,\
     MonoSequencer,\
     ScaleCube,\
-    ColorSequencer
+    PatchCube
 
 import logging
 
@@ -34,13 +35,16 @@ def main():
 
     # instruments = {}
 
-    default_rhythm = [-1] * 16
-    # make COLOR_MONO_SEQUENCER
-    cms1 = CMS(rhythm=default_rhythm)
-
-    cms2 = CMS(rhythm=default_rhythm)
-
     scale_cube = ScaleCube()
+    scale_changer = CubeOfScaleChanger(scale_cube)
+
+    patch_cube = PatchCube(instruments=[])
+    patch_changer = CubeOfPatchChanger(patch_cube)
+
+    # make COLOR_MONO_SEQUENCER
+    cms1 = CMS(scale_cube)
+
+    cms2 = CMS(scale_cube)
 
     # make MONO_SEQUENCER
 
@@ -49,7 +53,8 @@ def main():
 
     # slow
     slow_factor = 2
-    mono_seq_2 = MonoSequencer(cms1.notes, instruments=[], time_multiplier= 16 / slow_factor)
+    mono_seq_2 = MonoSequencer(
+        cms1.notes, instruments=[], time_multiplier=16 / slow_factor)
 
     # make CLOCKER
     clocker = Clocker()
@@ -59,8 +64,9 @@ def main():
 
     # Set up metronome
     metronome_cbs = [
-        clocker.metronome_cb, mono_seq_1.on_beat, mono_seq_2.on_beat,
-        cms2.metro_cb, cms1.metro_cb
+        clocker.metronome_cb,
+        mono_seq_1.on_beat,
+        mono_seq_2.on_beat,
     ]
     metronome = Metronome(metronome_cbs, starting_bpm)
 
@@ -70,9 +76,10 @@ def main():
     # hash of {path: (consumer, producer)}
     ws_behaviors = {
         'clocker': (None, clocker.obs),
-        'scale': (None, scale_cube.ws_msg_producer),
         # 'particles': (particles_ws_consumer, None),
         'metronome_changer': (metro_changer.ws_consumer, metro_changer.obs),
+        'scale': (scale_changer.ws_consumer, scale_changer.obs),
+        'patch': (patch_changer.ws_consumer, patch_changer.obs),
         'cms1': (cms1.ws_consumer, cms1.obs),
         'cms2': (cms2.ws_consumer, cms2.obs)
     }
@@ -85,11 +92,12 @@ def main():
 
     # Set Up mbits
     gupaz_cb = make_gupaz_uart_cb(scale_cube, loop)
+    vozuz_cb = make_vozuz_uart_cb(scale_cube, loop)
     # setup_mbits(gupaz_cb)
 
     # and run the dbus loop
-    t = threading.Thread(target=run_dbus_loop)
-    t.start()
+    # t = threading.Thread(target=run_dbus_loop)
+    # t.start()
 
     loop.run_until_complete(asyncio.gather(*coros))
 
@@ -121,11 +129,12 @@ def microbit_init(address):
     return mbit
 
 
-def setup_mbits(gupaz_uart_cb):
+def setup_mbits(gupaz_uart_cb, vozuz_uart_cb):
 
     gupaz = microbit_init(MBIT_GUPAZ)
-
+    vozuz = microbit_init(MBIT_VOZUZ)
     gupaz.subscribe_uart(gupaz_uart_cb)
+    vozuz.subscribe_uart(vozuz_uart_cb)
 
 
 def make_gupaz_uart_cb(scale_cube, loop):
@@ -138,6 +147,24 @@ def make_gupaz_uart_cb(scale_cube, loop):
                 logging.info(
                     'Power Cube of Scale: CONNECTED at {}'.format(payload))
                 asyncio.ensure_future(scale_cube.set_scale(payload), loop=loop)
+
+        except Exception as e:
+            print(e)
+            print('error', data)
+
+    return cb
+
+
+def make_vozuz_uart_cb(patch_cube, loop):
+    def cb(l, data, x):
+        try:
+            (kind, payload) = [int(chr(c)) for c in data['Value']]
+            if kind == 0:
+                logging.info('Power Cube of Scale: DISCONNECTED')
+            elif kind == 1:
+                logging.info(
+                    'Power Cube of Scale: CONNECTED at {}'.format(payload))
+                asyncio.ensure_future(patch_cube.set_patch(payload), loop=loop)
 
         except Exception as e:
             print(e)
