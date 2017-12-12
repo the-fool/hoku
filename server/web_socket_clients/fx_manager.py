@@ -23,4 +23,4 @@ class FxManager:
         cb(payload)
 
         # echo to all subscribers
-        self.emit(msg_maker(kind, payload))
+        await self.emit(msg_maker(kind, payload))

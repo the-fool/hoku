@@ -26,7 +26,7 @@ class ColorMonoSequencer:
         self.scale_cube = scale_cube
 
         # optimization
-        self._prev_scale = scale_cube.scale
+        self._prev_scale = scale_cube.scale_index
 
         self.base_do = base_do
         self.length = length
@@ -34,7 +34,7 @@ class ColorMonoSequencer:
         # the rhythm of the colors
         # -1 is rest, 0 hold, 1+ different colors
         self.rhythm = [-1] * length
-        self._real_notes = [base_do] * length
+        self._real_notes = [-1] * length
         self.obs, self.emit = observable_factory(self.msg_maker())
 
     def msg_maker(self):
@@ -44,23 +44,25 @@ class ColorMonoSequencer:
             }
         })
 
-    @property
-    def notes(self):
+    def get_notes(self):
         # if the scale cube has been changed, we need to update notes
-        if self._prev_scale is not self.scale_cube.scale:
-            self._prev_scale = self.scale_cube.scale
+        if self._prev_scale is not self.scale_cube.scale_index:
+            self._prev_scale = self.scale_cube.scale_index
             self.update_notes()
         return self._real_notes
 
     def update_notes(self):
-        for i, n in enumerate(self.rhythm):
 
+        for i, n in enumerate(self.rhythm):
             # 0 and -1 are special cases (not mapped)
             if n > 0:
                 scaleIndex = (n - 1) % 7
+
                 scaleMultiplier = (n - 1) // 7
-                pitch = self.scale[scaleIndex] + self.base_do + (
+
+                pitch = self.scale_cube.scale[scaleIndex] + self.base_do + (
                     12 * scaleMultiplier)
+
             else:
                 # if rhythm is 0 or -1, those special codes map to pitch
                 pitch = n
@@ -79,5 +81,17 @@ class ColorMonoSequencer:
             # unknown
             return
 
+        print('got', payload)
+        print('new rhythm', self.rhythm)
+        await self.on_change()
+
+    async def set_rhythm(self, new_rhythm):
+        for i, _ in enumerate(self.rhythm):
+            self.rhythm[i] = new_rhythm[i]
+
+        await self.on_change()
+
+    async def on_change(self):
         self.update_notes()
+        print('real notes', self._real_notes)
         await self.emit(self.msg_maker())

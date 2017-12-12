@@ -1,4 +1,4 @@
-function makeSynthWidget(node) {
+function makeSynthWidget(node, fxWs) {
   const labels = ['Vol', 'Dist', 'Rev', 'Filt'];
   const makeDatum = (name) => ({
     name,
@@ -9,14 +9,14 @@ function makeSynthWidget(node) {
   });
 
 
-  ['outer', 'inner'].forEach(name => {
+  ['outer', 'inner'].forEach((name,i) => {
 
     const datum = makeDatum(name);
     const attractorContainer = node.find(`#${name} .attractor`).first();
     const controlsContainer = node.find(`#${name} .controls`).first();
 
 
-    const a = new AttractorWidget(attractorContainer, controlsContainer);
+    const a = new AttractorWidget(attractorContainer, controlsContainer, fxWs[i]);
 
     a.initialize();
 

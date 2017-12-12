@@ -4,7 +4,8 @@ import threading
 
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib as GObject
-# from .instruments.four_by_four import instruments
+
+from .util import scale
 
 from .microbit import MyMicrobit
 
@@ -14,7 +15,8 @@ from .web_socket_clients import Clocker, MetronomeChanger,\
     ColorMonoSequencer as CMS,\
     CubeOfScaleChanger,\
     CubeOfPatchChanger,\
-    DrummerChanger
+    DrummerChanger,\
+    FxManager
 
 from .modules import Metronome,\
     MonoSequencer,\
@@ -22,7 +24,12 @@ from .modules import Metronome,\
     PatchCube,\
     Drummer
 
+from .table import LedTCPServer
+
 import logging
+
+from .instruments.four_by_four import instruments
+#instruments = []
 
 MBIT_VOZUZ = 'DE:ED:5C:B4:E3:73'
 MBIT_GUPAZ = 'D5:38:B0:2D:BF:B6'
@@ -35,13 +42,17 @@ def main():
     logging.basicConfig(
         level=logging.INFO, format='%(relativeCreated)6d %(message)s')
 
-    # instruments = {}
-
     scale_cube = ScaleCube()
     scale_changer = CubeOfScaleChanger(scale_cube)
 
-    patch_cube = PatchCube(instruments=[])
+    patch_cube = PatchCube(instruments=instruments[:2])
     patch_changer = CubeOfPatchChanger(patch_cube)
+
+    # fx_cbs = make_fx_cbs()
+
+    # mini_1_fx = FxManager(fx_cbs['mini_1'])
+    # mini_2_fx = FxManager(fx_cbs['mini_2'])
+    #reaper_fx = FxManager(fx_cbs['reaper'])
 
     # make COLOR_MONO_SEQUENCER
     cms1 = CMS(scale_cube)
@@ -51,30 +62,27 @@ def main():
     # make MONO_SEQUENCER
 
     # fast
-    mono_seq_1 = MonoSequencer(cms2.notes, instruments=[])
+    mono_seq_1 = MonoSequencer(cms2.get_notes, instruments=[instruments[0]])
 
     # slow
     slow_factor = 2
     mono_seq_2 = MonoSequencer(
-        cms1.notes, instruments=[], time_multiplier=16 / slow_factor)
+        cms1.get_notes, instruments=[instruments[1]], time_multiplier=16 / slow_factor)
 
     # make CLOCKER
     clocker = Clocker()
 
     # make DRUMMER
-    drummer = Drummer()
-    drummer_changer = DrummerChanger(drummer=drummer)
-
+    # drummer = Drummer(midi_devs=[instruments[2]])
+    # drummer_changer = DrummerChanger(drummer=drummer)
 
     # make particles
     # particles_ws_consumer = particles_factory(midi_q)
 
     # Set up metronome
     metronome_cbs = [
-        clocker.metronome_cb,
-        mono_seq_1.on_beat,
-        mono_seq_2.on_beat,
-        drummer.on_beat
+        clocker.metronome_cb, mono_seq_1.on_beat, mono_seq_2.on_beat,
+      #  drummer.on_beat
     ]
 
     metronome = Metronome(metronome_cbs, starting_bpm)
@@ -91,7 +99,10 @@ def main():
         'patch': (patch_changer.ws_consumer, patch_changer.obs),
         'cms1': (cms1.ws_consumer, cms1.obs),
         'cms2': (cms2.ws_consumer, cms2.obs),
-        'drummer': (drummer_changer.ws_consumer, drummer_changer.obs)
+       # 'drummer': (drummer_changer.ws_consumer, drummer_changer.obs),
+      #  'fx_mini_1': (mini_1_fx.ws_consumer, mini_1_fx.obs),
+      #  'fx_mini_2': (mini_2_fx.ws_consumer, mini_2_fx.obs),
+       # 'fx_reaper': (reaper_fx.ws_consumer, reaper_fx.obs),
     }
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
@@ -181,3 +192,38 @@ def make_vozuz_uart_cb(patch_cube, loop):
             print('error', data)
 
     return cb
+
+
+def make_fx_cbs():
+    if len(instruments) < 3:
+        # no instruments connected
+        return
+
+    reaper = instruments[2]
+
+    def scale_it(cb):
+        def scaled(x):
+            cb(scale(x, 0, 1, 0, 127))
+
+        return scaled
+
+    def make_mini_cbs(i):
+        mini = instruments[i]
+        return {
+            'cutoff': scale_it(mini.cutoff),
+            'release': scale_it(mini.amp_release),
+            'decay': scale_it(mini.amp_decay),
+            'volume': scale_it(mini.level),
+            'reverb': scale_it(getattr(reaper, 'mini_{}_verb'.format(i + 1))),
+            'distortion': scale_it(getattr(reaper, 'mini_{}_dist'.format(i + 1)))
+        }
+
+    reaper_cbs = {
+        'drum_reverb': scale_it(reaper.drum_verb)
+    }
+
+    return {
+        'mini_1': make_mini_cbs(0),
+        'mini_2': make_mini_cbs(1),
+        'reaper': reaper_cbs
+    }

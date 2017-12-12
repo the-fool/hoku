@@ -1,4 +1,4 @@
-function AttractorWidget(canvasContainer, controlsContainer) {
+function AttractorWidget(canvasContainer, controlsContainer, fxWs) {
     // Input: a container jquery elm
     const self = this;
 
@@ -206,16 +206,37 @@ function AttractorWidget(canvasContainer, controlsContainer) {
     }
 
     function addGui() {
+      console.log(fxWs);
+        function sendWs(msg) {
+            fxWs.send(JSON.stringify(msg));
+        }
+        const pointMax = 40000;
+        const pointMin = 100;
+        const pointScale = d3.scaleLinear().domain([pointMin, pointMax]).range([0.01, 1]).clamp(true);
+
+      const pointSizeMin = 0.5;
+      const pointSizeMax = 9;
+      const pointSizeScale = d3.scaleLinear().domain([pointSizeMin, pointSizeMax]).range([0.01, 1]).clamp(true);
+        const throttledWsSend = throttle(sendWs, 200);
         gui = new DAT.GUI({
             autoPlace: false
         });
 
         gui.add(attractor, 'pointCount', 100, 40000, 500).name('Volume').onChange(function(newPointCount) {
+            throttledWsSend({
+                kind: 'volume',
+                payload: pointScale(newPointCount)
+            });
             attractor.setPointCount(newPointCount);
         });
 
-        gui.add(attractor, 'pointSize', 0.5, 9, 0.01).name('Distortion').onChange(function(newPointSize) {
-            attractor.setPointSize(newPointSize);
+        gui.add(attractor, 'pointSize', pointSizeMin, pointSizeMax, 0.01).name('Distortion').onChange(function(x) {
+
+          throttledWsSend({
+            kind: 'distortion',
+            payload: pointSizeScale(x)
+          });
+            attractor.setPointSize(x);
         });
 
         gui.add(attractor, 'blur', 0, 10, 0.01).name('Echo').onChange(attractor.setBlur);

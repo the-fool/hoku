@@ -1,4 +1,5 @@
-function makeBeatWidget(node,  drumWs) {
+function makeBeatWidget(node,  drumWs, fxWs) {
+  let virgin = true;
 
   const data = {
     family: 0,
@@ -9,22 +10,28 @@ function makeBeatWidget(node,  drumWs) {
     const el = $(this);
     const i = el.index();
     data.elements[i] = !data.elements[i];
-    onChange();
+    onChangeElements();
     applyChanges();
   });
 
-
   node.find('input[type=radio]').change(function() {
+    console.log('change');
     data.family = +this.value;
 
-    onChange();
+    onChangeFamily();
   });
 
   const g = d3.select(node.find('.reverb svg g').get()[0]);
 
-  function onVerbChange(x) {
-    console.log(x);
+  function sendVerbChange(x) {
+    fxWs.send(JSON.stringify({kind: 'drum_reverb', payload: x}));
   }
+  const throttledSendVerbChange = throttle(sendVerbChange, 200);
+  function onVerbChange(x) {
+    if (drumWs.readyState !== 1) return;
+    throttledSendVerbChange(x);
+  }
+
   makeSlider(g, 5, 30, 300, onVerbChange);
 
   function applyChanges() {
@@ -35,9 +42,14 @@ function makeBeatWidget(node,  drumWs) {
 
     $(node.find('input[type=radio]')[data.family]).trigger('click');
   }
+  function onChangeFamily() {
+    if (drumWs.readyState !== 1) return;
+    drumWs.send(JSON.stringify({kind: 'change_family', payload: data.family}));
+  }
 
-  function onChange() {
-    // send data down ws
+  function onChangeElements() {
+    if (drumWs.readyState !== 1) return;
+    drumWs.send(JSON.stringify({kind: 'change_elements', payload: data.elements}));
   }
 
   drumWs.onmessage = function(d) {

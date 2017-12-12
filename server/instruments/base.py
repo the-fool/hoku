@@ -22,8 +22,7 @@ class BaseInstrument:
         return x
 
     def note_on(self, note, velocity=127):
-        note = BaseInstrument.midify(note)
-        velocity = self.midify(velocity)
+        velocity = BaseInstrument.midify(velocity)
         self._out_msg('note_on', note=note, velocity=velocity)
 
     def note_off(self, note):
