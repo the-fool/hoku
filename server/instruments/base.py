@@ -37,3 +37,6 @@ class BaseInstrument:
     def _out_msg(self, kind, **kwargs):
         m = mido.Message(kind, **kwargs)
         self.outport.send(m)
+
+    def program_change(self, program):
+        self.outport.send('program_chage', program=program)

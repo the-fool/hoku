@@ -206,7 +206,8 @@ function AttractorWidget(canvasContainer, controlsContainer, fxWs) {
     }
 
     function addGui() {
-      console.log(fxWs);
+        const linearScale = (min, max) => d3.scaleLinear().domain([min, max]).range([0.01, 1]).clamp(true);
+
         function sendWs(msg) {
             fxWs.send(JSON.stringify(msg));
         }
@@ -214,9 +215,13 @@ function AttractorWidget(canvasContainer, controlsContainer, fxWs) {
         const pointMin = 100;
         const pointScale = d3.scaleLinear().domain([pointMin, pointMax]).range([0.01, 1]).clamp(true);
 
-      const pointSizeMin = 0.5;
-      const pointSizeMax = 9;
-      const pointSizeScale = d3.scaleLinear().domain([pointSizeMin, pointSizeMax]).range([0.01, 1]).clamp(true);
+        const pointSizeMin = 0.5;
+        const pointSizeMax = 9;
+        const pointSizeScale = d3.scaleLinear().domain([pointSizeMin, pointSizeMax]).range([0.01, 1]).clamp(true);
+
+        const blurMin = 0;
+        const blurMax = 10;
+        const blurScale = linearScale(blurMin, blurMax);
         const throttledWsSend = throttle(sendWs, 200);
         gui = new DAT.GUI({
             autoPlace: false
@@ -232,14 +237,21 @@ function AttractorWidget(canvasContainer, controlsContainer, fxWs) {
 
         gui.add(attractor, 'pointSize', pointSizeMin, pointSizeMax, 0.01).name('Distortion').onChange(function(x) {
 
-          throttledWsSend({
-            kind: 'distortion',
-            payload: pointSizeScale(x)
-          });
+            throttledWsSend({
+                kind: 'distortion',
+                payload: pointSizeScale(x)
+            });
             attractor.setPointSize(x);
         });
 
-        gui.add(attractor, 'blur', 0, 10, 0.01).name('Echo').onChange(attractor.setBlur);
+
+        gui.add(attractor, 'blur', blurMin, blurMax, 0.01).name('Echo').onChange(function(x) {
+            throttledWsSend({
+                kind: 'reverb',
+                payload: blurScale(x)
+            });
+            attractor.setBlur(x);
+        });
         /*
         gui.add(attractor, 'scale', 0.05, 2.5, 0.05).name('Scale').onChange(function(newScale) {
           attractor.setScale(newScale);
@@ -250,18 +262,22 @@ function AttractorWidget(canvasContainer, controlsContainer, fxWs) {
             step = 0.01;
 
 
-        function addFactorControl(name, key) {
+        function addFactorControl(name, key, endpoint) {
             gui.add(attractor, key, min, max, step).name(name).onChange(function(newValue) {
+                throttledWsSend({
+                    kind: endpoint,
+                    payload: newValue
+                });
                 attractor.setFactor(key, newValue);
             }).listen();
         }
 
         const factors = [
-            ['Decay', 'D'],
-            ['Release', 'A'],
-            ['Shape', 'C']
+            ['Decay', 'D', 'decay'],
+            ['Release', 'A', 'release'],
+            ['Filter', 'C', 'cutoff']
         ];
-        factors.forEach(([name, key]) => addFactorControl(name, key));
+      factors.forEach(([name, key, endpoint]) => addFactorControl(name, key, endpoint));
 
         controlsContainer.get()[0].appendChild(gui.domElement);
     }

@@ -24,7 +24,7 @@ from .modules import Metronome,\
     PatchCube,\
     Drummer
 
-from .table import LedTCPServer
+# from .table import LedTCPServer
 
 import logging
 
@@ -40,7 +40,7 @@ starting_bpm = 120
 
 def main():
     logging.basicConfig(
-        level=logging.INFO, format='%(relativeCreated)6d %(message)s')
+        level=logging.DEBUG)
 
     scale_cube = ScaleCube()
     scale_changer = CubeOfScaleChanger(scale_cube)
@@ -48,15 +48,14 @@ def main():
     patch_cube = PatchCube(instruments=instruments[:2])
     patch_changer = CubeOfPatchChanger(patch_cube)
 
-    # fx_cbs = make_fx_cbs()
+    fx_cbs = make_fx_cbs()
 
-    # mini_1_fx = FxManager(fx_cbs['mini_1'])
-    # mini_2_fx = FxManager(fx_cbs['mini_2'])
-    #reaper_fx = FxManager(fx_cbs['reaper'])
+    mini_1_fx = FxManager(fx_cbs['mini_1'])
+    mini_2_fx = FxManager(fx_cbs['mini_2'])
+    reaper_fx = FxManager(fx_cbs['reaper'])
 
     # make COLOR_MONO_SEQUENCER
     cms1 = CMS(scale_cube)
-
     cms2 = CMS(scale_cube)
 
     # make MONO_SEQUENCER
@@ -73,8 +72,8 @@ def main():
     clocker = Clocker()
 
     # make DRUMMER
-    # drummer = Drummer(midi_devs=[instruments[2]])
-    # drummer_changer = DrummerChanger(drummer=drummer)
+    drummer = Drummer(midi_devs=[instruments[2]])
+    drummer_changer = DrummerChanger(drummer=drummer)
 
     # make particles
     # particles_ws_consumer = particles_factory(midi_q)
@@ -82,7 +81,7 @@ def main():
     # Set up metronome
     metronome_cbs = [
         clocker.metronome_cb, mono_seq_1.on_beat, mono_seq_2.on_beat,
-      #  drummer.on_beat
+      drummer.on_beat
     ]
 
     metronome = Metronome(metronome_cbs, starting_bpm)
@@ -99,10 +98,10 @@ def main():
         'patch': (patch_changer.ws_consumer, patch_changer.obs),
         'cms1': (cms1.ws_consumer, cms1.obs),
         'cms2': (cms2.ws_consumer, cms2.obs),
-       # 'drummer': (drummer_changer.ws_consumer, drummer_changer.obs),
-      #  'fx_mini_1': (mini_1_fx.ws_consumer, mini_1_fx.obs),
-      #  'fx_mini_2': (mini_2_fx.ws_consumer, mini_2_fx.obs),
-       # 'fx_reaper': (reaper_fx.ws_consumer, reaper_fx.obs),
+        'drummer': (drummer_changer.ws_consumer, drummer_changer.obs),
+        'fx_mini_1': (mini_1_fx.ws_consumer, mini_1_fx.obs),
+        'fx_mini_2': (mini_2_fx.ws_consumer, mini_2_fx.obs),
+        'fx_reaper': (reaper_fx.ws_consumer, reaper_fx.obs),
     }
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
@@ -211,6 +210,7 @@ def make_fx_cbs():
         mini = instruments[i]
         return {
             'cutoff': scale_it(mini.cutoff),
+            'attack': scale_it(mini.eg_attack),
             'release': scale_it(mini.amp_release),
             'decay': scale_it(mini.amp_decay),
             'volume': scale_it(mini.level),

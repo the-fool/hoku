@@ -30,6 +30,9 @@ class Minilogue(BaseInstrument):
     def amp_decay(self, value):
         self._control(self.AMP_DECAY, value)
 
+    def eg_attack(self, value):
+        self._control(self.EG_ATTACK, value)
+
     def eg_decay(self, value):
         self._control(self.EG_DECAY, value)
 
