@@ -14,4 +14,4 @@ class PatchCube:
 
     def bcast(self):
         for i in self.instruments:
-            i.patch(self.patch)
+            i.program_change(self.patch)

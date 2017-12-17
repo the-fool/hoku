@@ -16,6 +16,6 @@ const drumFxWs = wsConnect('fx_reaper');
 const outerFxWs = wsConnect('fx_mini_1');
 const innerFxWs = wsConnect('fx_mini_2');
 
-makeBpmWidget(BPM_CONTAINER, bpmWs, clockWs);
+makeBpmWidget2(BPM_CONTAINER, bpmWs, clockWs);
 makeSynthWidget(SYNTH_CONTAINER, [outerFxWs, innerFxWs]);
 makeBeatWidget(BEAT_CONTAINER, drumWs, drumFxWs);

@@ -86,6 +86,7 @@ class ColorMonoSequencer:
         await self.on_change()
 
     async def set_rhythm(self, new_rhythm):
+        print('New rhythm', new_rhythm)
         for i, _ in enumerate(self.rhythm):
             self.rhythm[i] = new_rhythm[i]
 

@@ -1,5 +1,5 @@
 import asyncio
-
+import sys
 import threading
 
 from dbus.mainloop.glib import DBusGMainLoop
@@ -24,12 +24,10 @@ from .modules import Metronome,\
     PatchCube,\
     Drummer
 
-# from .table import LedTCPServer
+from .instruments.four_by_four import instruments
+from .table import LedTCPServer
 
 import logging
-
-from .instruments.four_by_four import instruments
-#instruments = []
 
 MBIT_VOZUZ = 'DE:ED:5C:B4:E3:73'
 MBIT_GUPAZ = 'D5:38:B0:2D:BF:B6'
@@ -37,10 +35,28 @@ DONGLE_ADDR = '5C:F3:70:81:F3:66'
 
 starting_bpm = 120
 
+loop = asyncio.get_event_loop()
+
+BLE = True
+LED = True
+
+
+def parse_argv():
+    global BLE
+    global LED
+    argv = sys.argv
+    for arg in argv:
+        if arg == 'nb':
+            # no ble
+            BLE = False
+        elif arg == 'n':
+            LED = False
+
 
 def main():
-    logging.basicConfig(
-        level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
+
+    parse_argv()
 
     scale_cube = ScaleCube()
     scale_changer = CubeOfScaleChanger(scale_cube)
@@ -64,9 +80,8 @@ def main():
     mono_seq_1 = MonoSequencer(cms2.get_notes, instruments=[instruments[0]])
 
     # slow
-    slow_factor = 2
     mono_seq_2 = MonoSequencer(
-        cms1.get_notes, instruments=[instruments[1]], time_multiplier=16 / slow_factor)
+        cms1.get_notes, instruments=[instruments[1]], time_multiplier=16)
 
     # make CLOCKER
     clocker = Clocker()
@@ -78,10 +93,15 @@ def main():
     # make particles
     # particles_ws_consumer = particles_factory(midi_q)
 
+    table_server = LedTCPServer(
+        loop=loop,
+        scale_cube=scale_cube,
+        patch_cube=patch_cube,
+        color_seqs=[cms1, cms2])
     # Set up metronome
     metronome_cbs = [
         clocker.metronome_cb, mono_seq_1.on_beat, mono_seq_2.on_beat,
-      drummer.on_beat
+        table_server.metro_cb, drummer.on_beat
     ]
 
     metronome = Metronome(metronome_cbs, starting_bpm)
@@ -108,16 +128,16 @@ def main():
 
     coros = [ws_server_coro, metronome.run()]
 
-    loop = asyncio.get_event_loop()
+    coros.extend(table_server.coros)
 
     # Set Up mbits
     gupaz_cb = make_gupaz_uart_cb(scale_cube, loop)
-    vozuz_cb = make_vozuz_uart_cb(scale_cube, loop)
-    # setup_mbits(gupaz_cb)
+    vozuz_cb = make_vozuz_uart_cb(patch_cube)
+    setup_mbits(vozuz_cb, gupaz_cb)
 
     # and run the dbus loop
-    # t = threading.Thread(target=run_dbus_loop)
-    # t.start()
+    t = threading.Thread(target=run_dbus_loop)
+    t.start()
 
     loop.run_until_complete(asyncio.gather(*coros))
 
@@ -149,7 +169,7 @@ def microbit_init(address):
     return mbit
 
 
-def setup_mbits(gupaz_uart_cb, vozuz_uart_cb):
+def setup_mbits(vozuz_uart_cb, gupaz_uart_cb):
 
     gupaz = microbit_init(MBIT_GUPAZ)
     vozuz = microbit_init(MBIT_VOZUZ)
@@ -168,6 +188,7 @@ def make_gupaz_uart_cb(scale_cube, loop):
                     'Power Cube of Scale: CONNECTED at {}'.format(payload))
                 asyncio.ensure_future(scale_cube.set_scale(payload), loop=loop)
 
+            print(kind, payload)
         except Exception as e:
             print(e)
             print('error', data)
@@ -175,7 +196,7 @@ def make_gupaz_uart_cb(scale_cube, loop):
     return cb
 
 
-def make_vozuz_uart_cb(patch_cube, loop):
+def make_vozuz_uart_cb(patch_cube):
     def cb(l, data, x):
         try:
             (kind, payload) = [int(chr(c)) for c in data['Value']]
@@ -184,8 +205,9 @@ def make_vozuz_uart_cb(patch_cube, loop):
             elif kind == 1:
                 logging.info(
                     'Power Cube of Scale: CONNECTED at {}'.format(payload))
-                asyncio.ensure_future(patch_cube.set_patch(payload), loop=loop)
-
+                
+                patch_cube.set_patch(payload)
+            print(kind, payload)
         except Exception as e:
             print(e)
             print('error', data)
@@ -215,12 +237,11 @@ def make_fx_cbs():
             'decay': scale_it(mini.amp_decay),
             'volume': scale_it(mini.level),
             'reverb': scale_it(getattr(reaper, 'mini_{}_verb'.format(i + 1))),
-            'distortion': scale_it(getattr(reaper, 'mini_{}_dist'.format(i + 1)))
+            'distortion':
+            scale_it(getattr(reaper, 'mini_{}_dist'.format(i + 1)))
         }
 
-    reaper_cbs = {
-        'drum_reverb': scale_it(reaper.drum_verb)
-    }
+    reaper_cbs = {'drum_reverb': scale_it(reaper.drum_verb)}
 
     return {
         'mini_1': make_mini_cbs(0),

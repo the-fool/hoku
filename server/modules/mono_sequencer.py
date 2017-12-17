@@ -39,7 +39,6 @@ class MonoSequencer:
         # we either have a note, or a rest -- do note off!
         if note is not 0 and self.off_note is not 0:
             for instrument in self.instruments:
-                print('off note', self.off_note)
                 instrument.note_off(self.off_note)
                 self.off_note = 0
 
@@ -47,6 +46,4 @@ class MonoSequencer:
         if note > 0:
             self.off_note = note
             for instrument in self.instruments:
-
-                print('on note', self.off_note)
                 instrument.note_on(note)

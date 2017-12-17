@@ -1,3 +1,25 @@
+function makeBpmWidget2(node, bpmWs, clockWs) {
+  const sliderG = d3.select(node.find('#bpm-slider svg').get()[0]);
+  const flowerG = d3.select(node.find('#flower-clock svg').get()[0]);
+
+  function sendBpmWsMsg(val) {
+    bpmWs.send(JSON.stringify({
+      kind: 'change',
+      payload: val
+    }));
+  }
+  const throttledBpmSend = throttle(sendBpmWsMsg, 200);
+  makeSlider(sliderG, 5, 30, 300, throttledBpmSend);
+
+  clockWs.onmessage = function(d) {
+    const data = JSON.parse(d.data);
+    const tick = data.tick % 16 + 1;
+    flowerG.select(`#Petal-${tick} path`).classed('active', true);
+    flowerG.select(`#Petal-${tick === 1 ? 16 : tick - 1} path`).classed('active', false);
+  };
+
+}
+
 function makeBpmWidget(node, bpmWs, clockWs) {
   // input: jquery elm
   const rawHeight = 300;

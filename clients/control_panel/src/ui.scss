@@ -1,3 +1,6 @@
+$blue: #00a8f7;
+$bar-bg: #202020;
+
 /* Customize the label (the container) */
 .sci-ui {
   display: block;
@@ -38,7 +41,7 @@
 
     /* When the radio button is checked, add a blue background */
     input:checked ~ .checkmark {
-      background-color: #2196F3;
+      background-color: $blue;
     }
 
     /* Create the indicator (the dot/circle - hidden when not checked) */
@@ -71,7 +74,7 @@
 
     /* When the checkbox is checked, add a blue background */
     .container input:checked ~ .checkmark {
-      background-color: #2196F3;
+      background-color: $blue;
     }
 
     /* Create the checkmark/indicator (hidden when not checked) */
@@ -121,7 +124,7 @@
 
     /* When the checkbox is checked, add a blue background */
     input:checked ~ .checkmark {
-      background-color: #2196F3;
+      background-color: $blue;
     }
 
     /* Create the checkmark/indicator (hidden when not checked) */
@@ -152,7 +155,7 @@
 
 
   .button {
-    background-color: #4CAF50; /* Green */
+    background-color: $blue; /* Green */
     border: none;
     color: white;
     padding: 15px 32px;
@@ -163,16 +166,14 @@
 
     &.outline {
       background-color: transparent;
-      border: 2px solid #4CAF50; /* Green */
+      border: 2px solid $blue; /* Green */
 
       &:hover {
-        background-color: #4CAF50; /* Green */
-        color: white;
       }
 
       &.active {
-        background-color: white;
-        color: black;
+        background-color: $blue;
+        color: white;
       }
     }
   }
