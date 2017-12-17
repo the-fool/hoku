@@ -1,8 +1,6 @@
 import asyncio
-import socket
 import struct
 import sys
-import logging
 
 """
 Main server for controlling LED FadeCandy server
