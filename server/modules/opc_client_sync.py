@@ -1,16 +1,10 @@
-import asyncio
 import socket
 import struct
 import sys
-import logging
-
-"""
-Main server for controlling LED FadeCandy server
-"""
 
 
-class OpcClientAsync:
-    def __init__(self, loop, server_ip_port, verbose=True):
+class OpcClientSync(object):
+    def __init__(self, server_ip_port, long_connection=True, verbose=False):
         """Create an OPC client object which sends pixels to an OPC server.
 
         server_ip_port should be an ip:port or hostname:port as a single string.
@@ -33,44 +27,83 @@ class OpcClientAsync:
 
         """
         self.verbose = verbose
-        self.host, self.port = server_ip_port.split(':')
-        self.port = int(self.port)
-        self.socket = None  # will be None when we're not connected
-        self.loop = loop
 
-    def debug(self, m):
+        self._long_connection = long_connection
+
+        self._ip, self._port = server_ip_port.split(':')
+        self._port = int(self._port)
+
+        self._socket = None  # will be None when we're not connected
+
+    def _debug(self, m):
         if self.verbose:
             print('    %s' % str(m))
 
-    async def ensure_connected(self):
+    def _ensure_connected(self):
         """Set up a connection if one doesn't already exist.
 
         Return True on success or False on failure.
 
         """
-        if self.socket:
-            self.debug('_ensure_connected: already connected, doing nothing')
+        if self._socket:
+            self._debug('_ensure_connected: already connected, doing nothing')
             return True
 
         try:
-            self.debug('_ensure_connected: trying to connect...')
-            _, self.socket = await asyncio.open_connection(
-                self.host, self.port, loop=self.loop)
-            self.debug('_ensure_connected:    ...success')
+            self._debug('_ensure_connected: trying to connect...')
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._socket.connect((self._ip, self._port))
+            self._debug('_ensure_connected:    ...success')
             return True
-        except:
-            self.debug('_ensure_connected:    ...failure')
-            self.socket = None
+        except socket.error:
+            self._debug('_ensure_connected:    ...failure')
+            self._socket = None
             return False
+
+    def set_interpolation(self, enabled=True):
+        """
+        Enables or disables frame interpolation on runtime.
+
+        Return True on success.
+        """
+        self._debug('set_interpolation: connecting')
+        is_connected = self._ensure_connected()
+        if not is_connected:
+            self._debug(
+                'set_interpolation: not connected.  ignoring reconfiguration.')
+            return False
+
+        #build firmaware configuration message as documented on
+        #https://github.com/scanlime/fadecandy/blob/master/doc/fc_protocol_opc.md#set-firmware-configuration
+        if enabled:
+            config_bit = 0
+        else:
+            config_bit = 2
+        message = struct.pack('BBBBBBBBB', 0, 255, 0, 5, 0, 1, 0, 2,
+                              config_bit)
+
+        self._debug('set_interpolation: sending firmware configuration')
+        try:
+            self._socket.send(message)
+        except socket.error:
+            self._debug(
+                'set_interpolation: connection lost.  could not send firmware configuration.'
+            )
+            self._socket = None
+            return False
+        if not self._long_connection:
+            self._debug('set_interpolation: disconnecting')
+            self.disconnect()
+        return True
 
     def disconnect(self):
         """Drop the connection to the server, if there is one."""
-        self.debug('disconnecting')
-        if self.socket:
-            self.socket.close()
-        self.socket = None
+        self._debug('disconnecting')
+        if self._socket:
+            self._socket.close()
+        self._socket = None
 
-    async def can_connect(self):
+    def can_connect(self):
         """Try to connect to the server.
 
         Return True on success or False on failure.
@@ -79,32 +112,12 @@ class OpcClientAsync:
         subsequent put_pixels calls.
 
         """
-        return await self.ensure_connected()
+        success = self._ensure_connected()
+        if not self._long_connection:
+            self.disconnect()
+        return success
 
-    async def set_interpolation(self, enabled=True):
-        if enabled:
-            config_bit = 0
-        else:
-            config_bit = 2
-        message = struct.pack('BBBBBBBBB', 0, 255, 0, 5, 0, 1, 0, 2,
-                              config_bit)
-
-        is_connected = await self.ensure_connected()
-
-        if not is_connected:
-            self.debug(
-                'set_interpolation: not connected.  ignoring reconfiguration.')
-            return False
-        try:
-            self.socket.write(message)
-            await self.socket.drain()
-        except Exception as e:
-            print(e)
-            self.debug('put_pixels: connection lost.  could not send pixels.')
-            self.socket = None
-            return False
-
-    async def put_pixels(self, pixels, channel=0):
+    def put_pixels(self, pixels, channel=0):
         """Send the list of pixel colors to the OPC server on the given channel.
 
         channel: Which strand of lights to send the pixel colors to.
@@ -127,10 +140,10 @@ class OpcClientAsync:
         LED at a time (unless it's the first one).
 
         """
-        self.debug('put_pixels: connecting')
-        is_connected = await self.ensure_connected()
+        self._debug('put_pixels: connecting')
+        is_connected = self._ensure_connected()
         if not is_connected:
-            self.debug('put_pixels: not connected.  ignoring these pixels.')
+            self._debug('put_pixels: not connected.  ignoring these pixels.')
             return False
 
         # build OPC message
@@ -155,14 +168,16 @@ class OpcClientAsync:
             # strings!
             message = header + ''.join(pieces)
 
-        self.debug('put_pixels: sending pixels to server')
+        self._debug('put_pixels: sending pixels to server')
         try:
-            self.socket.write(message)
-            await self.socket.drain()
-        except Exception as e:
-            print(e)
-            self.debug('put_pixels: connection lost.  could not send pixels.')
-            self.socket = None
+            self._socket.send(message)
+        except socket.error:
+            self._debug('put_pixels: connection lost.  could not send pixels.')
+            self._socket = None
             return False
+
+        if not self._long_connection:
+            self._debug('put_pixels: disconnecting')
+            self.disconnect()
 
         return True

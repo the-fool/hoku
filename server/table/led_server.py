@@ -26,11 +26,28 @@ N_7 = TEAL
 COLORS = [N_0, N_1, N_2, N_3, N_4, N_5, N_6, N_7, N_1, N_2, N_3, N_4, N_5]
 
 L = 16
-N_PETAL_STRIP = 12
-N_VASE = 2
-N_YURT_PANEL = 1
 
+N_LEDS_IN_PETAL_STRIP = 6
+N_LEDS_IN_VASE = 1
+N_LEDS_IN_YURT_PANEL = 1
+
+# petal strips start at pin 0
+PETAL_STRIP_PIN = 0
+PETAL_STRIP_OFFSET = PETAL_STRIP_PIN * 64
+
+# vases start at pin 4
+
+VASE_1_PIN = 4
+VASE_2_PIN = 5
+VASE_1_OFFSET = 64 * VASE_1_PIN
+VASE_2_OFFSET = 64 * VASE_2_PIN
+
+# yurt starts at pin 6
+YURT_PIN = 6
+YURT_OFFSET = 6 * 64
 GRAY_ARRAY = [(GREY)] * 512
+
+
 class Protocol(asyncio.Protocol):
     def __init__(self, msg_sz, delim, on_data_cb):
         super(Protocol, self)
@@ -67,7 +84,7 @@ def pixel_step_factory():
         'yurt': [GREY for _ in range(16)],
 
         # There are 1 less petal strips than num vases
-        'petal_strips': [[GREY for _ in range(N_PETAL_STRIP)] for _ in range(16)],
+        'petal_strips': [GREY for _ in range(N_LEDS_IN_PETAL_STRIP)],
 
         # there are 2 channels of 16 vases
         'vases': [[GREY for _ in range(16)] for _ in range(2)]
@@ -83,14 +100,13 @@ class LedTCPServer(asyncio.Protocol):
             color_seqs,  # array
             fadecandy_host='127.0.0.1',
             ws_server_host='127.0.0.1'):
-        self.client = OpcClientAsync(loop, '{}:7890'.format(fadecandy_host), verbose=False)
+        self.client = OpcClientAsync(
+            loop, '{}:7890'.format(fadecandy_host), verbose=False)
 
         asyncio.ensure_future(self.client.set_interpolation(False), loop=loop)
+
         self.scale_cube = scale_cube
         self.patch_cube = patch_cube
-
-        self.old_scale = self.get_scale()
-        self.old_patch = self.get_patch()
 
         self.color_seqs = color_seqs
 
@@ -99,7 +115,7 @@ class LedTCPServer(asyncio.Protocol):
         self.loop = loop
 
         # dict of pixel info
-        self.pixels = [pixel_step_factory() for _ in range(16)]
+        self.pixels = pixel_step_factory()
 
         # buffer of all pixels the fadecandy can handle
         self.pixel_array = [GREY] * 512
@@ -120,17 +136,8 @@ class LedTCPServer(asyncio.Protocol):
 
     async def metro_cb(self, ts):
         self.rhythm_index = ts % 16
-
-        if self.scale_or_patch_diff():
-            self.old_scale = self.get_scale()
-            self.old_patch = self.get_patch()
         self.do_pixels()
-
         await self.send_pixels()
-
-    def scale_or_patch_diff(self):
-        return self.old_scale is not self.get_scale() or\
-            self.old_patch is not self.get_patch()
 
     def get_scale(self):
         return self.scale_cube.scale_index
@@ -149,22 +156,21 @@ class LedTCPServer(asyncio.Protocol):
         Dos a 16 * N matrix of pixels
         one list of N pixel items per each step in the sequence
         """
-        for step in range(0, 16):
-            self.do_yurt_pixels(step)
-            self.do_petal_strip_pixels(step)
-            self.do_vase_pixels(step)
+        self.do_yurt_pixels()
+        self.do_petal_strip_pixels()
+        self.do_vase_pixels()
 
-    def do_petal_strip_pixels(self, step):
+    def do_petal_strip_pixels(self):
         color = self.get_color()
 
-        for strip in self.pixels[step]['petal_strips']:
-            for i, _ in enumerate(strip):
-                strip[i] = color
+        petal_strips = self.pixels['petal_strips']
+        for i, _ in enumerate(petal_strips):
+            petal_strips[i] = color
 
-    def do_vase_pixels(self, step):
-        for channel_i, vase_channel in enumerate(self.pixels[step]['vases']):
+    def do_vase_pixels(self):
+        for channel_i, vase_channel in enumerate(self.pixels['vases']):
             for vase_i, _ in enumerate(vase_channel):
-                pitch = self.get_pitch(channel_i, step)
+                pitch = self.get_pitch(channel_i, vase_i)
 
                 if pitch > 0:
                     # pitch is an intoned note
@@ -175,10 +181,10 @@ class LedTCPServer(asyncio.Protocol):
 
                 vase_channel[vase_i] = new_color
 
-    def do_yurt_pixels(self, step):
-        yurt = self.pixels[step]['yurt']
+    def do_yurt_pixels(self):
+        yurt = self.pixels['yurt']
         for pane_i, _ in enumerate(yurt):
-            if pane_i == step:
+            if pane_i == self.rhythm_index:
                 yurt[pane_i] = self.get_color()
             else:
                 yurt[pane_i] = GREY
@@ -223,54 +229,27 @@ class LedTCPServer(asyncio.Protocol):
             await color_seq.set_rhythm(new_rhythm)
 
     async def send_pixels(self):
-        pixel_step = self.pixels[self.rhythm_index]
-        self.do_pixel_array(pixel_step)
-        await self.client.put_pixels(GRAY_ARRAY)
+        self.do_pixel_array()
+
+        # await self.client.put_pixels(GRAY_ARRAY)
 
         await self.client.put_pixels(self.pixel_array)
-    def do_pixel_array(self, pixel_step):
-        # petal strips start at pin 0
-        PETAL_STRIP_PIN = 0
 
-        # vases start at pin 4
-
-        VASE_1_PIN = 4
-        VASE_2_PIN = 5
-
-        # yurt starts at pin 5
-        YURT_PIN = 6
-
-        petal_strips = pixel_step['petal_strips']
-        vases = pixel_step['vases']
-        yurt = pixel_step['yurt']
-
-        def get_petal_strip_offset(index):
-            strips_per_pin = 4
-            pin = index // strips_per_pin + PETAL_STRIP_PIN
-            pin_offset = pin * 64
-            base_offset = N_PETAL_STRIP * (index % strips_per_pin)
-            return pin_offset + base_offset
-
-        def get_vase_offset(channel):
-            pin_offset = VASE_1_PIN + channel * 64
-            return pin_offset
-
-        def get_yurt_offset():
-            return YURT_PIN * 64
+    def do_pixel_array(self):
+        petal_strips = self.pixels['petal_strips']
+        vases = self.pixels['vases']
+        yurt = self.pixels['yurt']
 
         # compute petal strips
-        for index, petal_strip in enumerate(petal_strips):
-            offset = get_petal_strip_offset(index)
-            for i in range(N_PETAL_STRIP):
-                self.pixel_array[i + offset] = petal_strip[i]
+        for i in range(N_LEDS_IN_PETAL_STRIP):
+            self.pixel_array[i + PETAL_STRIP_OFFSET] = petal_strips[i]
 
         # compute vases
-        for channel_index, vase_channel in enumerate(vases):
-            offset = get_vase_offset(channel_index)
-            for vase_index, vase in enumerate(vase_channel):
-                self.pixel_array[vase_index + offset] = vase
+        for vase_index, vase_color in enumerate(vases[0]):
+            self.pixel_array[vase_index + VASE_1_OFFSET]
 
-        yurt_offset = get_yurt_offset()
-        for index, yurt in enumerate(yurt):
-            self.pixel_array[index + yurt_offset] = yurt
+        for vase_index, vase_color in enumerate(vases[1]):
+            self.pixel_array[vase_index + VASE_2_OFFSET] = vase_color
 
+        for index, yurt_color in enumerate(yurt):
+            self.pixel_array[index + YURT_OFFSET] = yurt_color
