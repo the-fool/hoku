@@ -44,7 +44,6 @@ class Drummer:
         step = ts % 16
         base_note = base + self.family * 4
         for i, el in enumerate(rhythm):
-            
             if self.elements[i] and el[step] is not 0:
                 for drum_machine in self.midi_devs:
-                    drum_machine.note_on(base_note + i)
+                    drum_machine.note_on(base_note + i, channel=2)

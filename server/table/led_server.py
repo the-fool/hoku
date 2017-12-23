@@ -13,6 +13,7 @@ PURPLE = (139, 0, 139)
 TEAL = (52, 161, 152)
 GREY = (10, 10, 10)
 
+DIM_FACTOR = 0.55
 N_0 = WHITE
 
 N_1 = PURPLE
@@ -29,7 +30,7 @@ L = 16
 
 N_LEDS_IN_PETAL_STRIP = 6
 N_LEDS_IN_VASE = 1
-N_LEDS_IN_YURT_PANEL = 1
+N_LEDS_IN_YURT_PANEL = 3
 
 # petal strips start at pin 0
 PETAL_STRIP_PIN = 0
@@ -69,7 +70,9 @@ class Protocol(asyncio.Protocol):
             if x == self.delim:
                 # are we at the end of a message?
                 if i == self.sz:
+                    print('HERE', i, self.msg)
                     self.on_data_cb(self.msg[:self.sz])
+                    self.msg = self.msg[self.sz:]
                 else:
                     # we missed a packet -- throw away the remains
                     self.msg = self.msg[i + 1:]
@@ -110,6 +113,7 @@ class LedTCPServer(asyncio.Protocol):
 
         self.color_seqs = color_seqs
 
+        self.ts = 0
         self.rhythm_index = 0
         self.pitches = [[0 for _ in range(16)], [0 for _ in range(16)]]
         self.loop = loop
@@ -135,6 +139,7 @@ class LedTCPServer(asyncio.Protocol):
         self.coros = [coro1, coro2]
 
     async def metro_cb(self, ts):
+        self.ts = ts
         self.rhythm_index = ts % 16
         self.do_pixels()
         await self.send_pixels()
@@ -197,6 +202,7 @@ class LedTCPServer(asyncio.Protocol):
     def on_recv_sensor_data(self, channel, data):
         logging.debug('LDCServer: Got sensor data {}'.format(data))
 
+        print(data)
         for i in range(16):
             self.pitches[channel][i] = data[i]
 
@@ -227,6 +233,7 @@ class LedTCPServer(asyncio.Protocol):
         for i, color_seq in enumerate(self.color_seqs):
             new_rhythm = to_cms_rhythm(i)
             await color_seq.set_rhythm(new_rhythm)
+            print('set', new_rhythm)
 
     async def send_pixels(self):
         self.do_pixel_array()
@@ -234,6 +241,11 @@ class LedTCPServer(asyncio.Protocol):
         # await self.client.put_pixels(GRAY_ARRAY)
 
         await self.client.put_pixels(self.pixel_array)
+
+    def dim(self, color):
+        def _dim(c):
+            return max(0, c * DIM_FACTOR)
+        return (_dim(color[0]), _dim(color[1]), _dim(color[2]))
 
     def do_pixel_array(self):
         petal_strips = self.pixels['petal_strips']
@@ -246,10 +258,18 @@ class LedTCPServer(asyncio.Protocol):
 
         # compute vases
         for vase_index, vase_color in enumerate(vases[0]):
-            self.pixel_array[vase_index + VASE_1_OFFSET]
+            if self.rhythm_index is vase_index:
+                self.pixel_array[vase_index + VASE_1_OFFSET] = vase_color
+            else:
+                self.pixel_array[vase_index + VASE_1_OFFSET] = self.dim(vase_color)
 
         for vase_index, vase_color in enumerate(vases[1]):
-            self.pixel_array[vase_index + VASE_2_OFFSET] = vase_color
+            if (self.ts // 16) % 16 is vase_index:
+                self.pixel_array[vase_index + VASE_2_OFFSET] = vase_color
+            else:
+                self.pixel_array[vase_index + VASE_2_OFFSET] = self.dim(vase_color)
 
         for index, yurt_color in enumerate(yurt):
-            self.pixel_array[index + YURT_OFFSET] = yurt_color
+            for j in range(N_LEDS_IN_YURT_PANEL):
+                self.pixel_array[j + (index * N_LEDS_IN_YURT_PANEL) + YURT_OFFSET] = yurt_color
+

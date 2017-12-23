@@ -87,7 +87,7 @@ def main():
     clocker = Clocker()
 
     # make DRUMMER
-    drummer = Drummer(midi_devs=[instruments[2]])
+    drummer = Drummer(midi_devs=[instruments[1]])
     drummer_changer = DrummerChanger(drummer=drummer)
 
     # make particles
@@ -97,7 +97,7 @@ def main():
         loop=loop,
         scale_cube=scale_cube,
         patch_cube=patch_cube,
-        color_seqs=[cms1, cms2])
+        color_seqs=[cms2, cms1])
     # Set up metronome
     metronome_cbs = [
         clocker.metronome_cb, mono_seq_1.on_beat, mono_seq_2.on_beat,
@@ -131,13 +131,14 @@ def main():
     coros.extend(table_server.coros)
 
     # Set Up mbits
-    gupaz_cb = make_gupaz_uart_cb(scale_cube, loop)
-    vozuz_cb = make_vozuz_uart_cb(patch_cube)
-    setup_mbits(vozuz_cb, gupaz_cb)
+    if BLE:
+        gupaz_cb = make_gupaz_uart_cb(scale_cube, loop)
+        vozuz_cb = make_vozuz_uart_cb(patch_cube)
+        setup_mbits(vozuz_cb, gupaz_cb)
 
-    # and run the dbus loop
-    t = threading.Thread(target=run_dbus_loop)
-    t.start()
+        # and run the dbus loop
+        t = threading.Thread(target=run_dbus_loop)
+        t.start()
 
     loop.run_until_complete(asyncio.gather(*coros))
 
