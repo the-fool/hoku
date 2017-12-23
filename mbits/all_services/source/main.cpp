@@ -11,23 +11,35 @@ MicroBitUARTService *uart;
 MicroBitPin P0(MICROBIT_ID_IO_P0, MICROBIT_PIN_P0, PIN_CAPABILITY_ALL);
 MicroBitSerial serial(USBTX, USBRX);
 
-// whether the mbit is contacted to the pillar
-int contacted_now=1, contacted_prev = 0;
 int i, r, g, b;
 char buffer[64];
 
-int pitch, roll, roll_quad, pitch_quad, face;
+int pitch, roll, roll_quad, pitch_quad;
 
+int* color;
+
+int RED[] = {209,0,0};
+int ORANGE[] = {255,102,34};
+int YELLOW[] = {255,218,33};
+int GREEN[] = {51,221,0};
+int BLUE[] = {17,51,204};
+int VIOLET[] = {51,0,68};
+
+int COLORS[][] = { RED, ORANGE, YELLOW, GREEN, BLUE, VIOLET };
+
+int contacted;
 int LED_LEN = 1;
-int connected = 0;
+int prev_face = -1;
+int face;
 
 void setColor(int face) {
+  /*
   if (face == 0) {
+    color = RED;
     r = 250;
     b = 0;
     g = 0;
   }
-
   if (face == 1) {
     r = 0;
     b = 250;
@@ -52,9 +64,13 @@ void setColor(int face) {
     r = 250;
     b = 250;
     g = 120;
-  }
+  }*/
+
+
+  color = COLORS[face];
+
   for (i = 0; i < LED_LEN; i++)
-  neopixel_set_color_and_show(&pixels, i, r, g, b);
+    neopixel_set_color_and_show(&pixels, i, color[0], color[1], color[2]);
 }
 void onConnected(MicroBitEvent)
 {
@@ -110,47 +126,41 @@ int getFace()
   roll_quad = getQuad(roll);
   pitch_quad = getQuad(pitch);
 
-  return calcFace(pitch_quad, roll_quad);
+  face = calcFace(pitch_quad, roll_quad);
 }
 
 void onContact(MicroBitEvent)
 {
-  contacted_now = P0.getDigitalValue();
+  contacted = P0.getDigitalValue();
 
-  /*
-  uBit.display.scroll("co");
-  if (contacted_now == contacted_prev) {
-    // debounce the duplicate values!
-    uBit.display.scroll("dup");
-    return;
+  getFace();
+
+  if (face != prev_face) {
+    prev_face = face;
+    if (contacted) {
+      setColor(face);
+    }
+    sprintf(buffer, "%d%d", contacted, face);
+    uart->send(buffer);
+    uBit.sleep(500);
   }
-  */
-
-  contacted_prev = contacted_now;
-
-  face = getFace();
-  setColor(face);
-  //sprintf(buffer, "p:%d r:%d pq:%d rq:%d\n", pitch, roll, pitch_quad, roll_quad);
-  //uBit.display.scroll(face);
-  //serial.send(buffer);
- 
-  sprintf(buffer, "%d%d", contacted_now, face);
-  uart->send(buffer);
-  uBit.sleep(500);
 }
 
 void onButtonA(MicroBitEvent)
 {
-  face = getFace();
+  getFace();
+
   setColor(face);
+
   sprintf(buffer, "1%d", face);
+
   uart->send(buffer);
+
   uBit.sleep(500);
 }
 
 
 int main() {
-
   uBit.init();
   uBit.display.scroll("GO");
 
@@ -164,33 +174,14 @@ int main() {
   uBit.messageBus.listen(MICROBIT_ID_IO_P0, MICROBIT_BUTTON_EVT_UP, onContact);
   uBit.messageBus.listen(MICROBIT_ID_IO_P0, MICROBIT_BUTTON_EVT_DOWN, onContact);
   uBit.io.P0.isTouched();
+
   // new MicroBitAccelerometerService(*uBit.ble, uBit.accelerometer);
+
   uart = new MicroBitUARTService(*uBit.ble, 32, 32);
   neopixel_init(&pixels, MICROBIT_PIN_P2, LED_LEN);
 
   uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA);
-  /*
 
-   while (1) {
-   j = (j + 1) % 8;
-
-   x = acc.getRoll();
-
-   if (connected && j == 0) {
-   uart->send(x);
-   }
-
-   x = x > 0 ? x : x * -1;
-
-   b = (int)floor(0 + (x * 255/180));
-   r = (int)floor(255 - (x * 255/180));
-
-   for (i = 0; i < LED_LEN; i++)
-   neopixel_set_color_and_show(&pixels, i, r, 20, b);
-
-   uBit.sleep(20);
-   }
-  */
 
   while(1)
     uBit.sleep(50);
