@@ -6,17 +6,17 @@ IONIAN = [0, 2, 4, 5, 7, 9, 11]
 
 AEOLIAN = [0, 2, 3, 5, 7, 8, 10]
 
-DORIAN = [0, 2, 3, 5, 7, 9, 11]
+LOCRIAN = [0, 1, 3, 5, 6, 8, 10]
 
-PHRYGIAN = [0, 1, 5, 7, 8, 10, 11]
+WHOLE_TONE = [0, 2, 4, 6, 8, 10, 12]
 
-LOCRIAN = [0, 2, 3, 4, 7, 8, 9]
+GYPSY = [0, 2, 3, 6, 7, 8, 11]
 
-MYXO = [0, 2, 4, 5, 7, 9, 10]
+PERSIAN = [0, 1, 4, 5, 6, 8, 11]
 
 # six scales
 
-SCALES = [IONIAN, AEOLIAN, DORIAN, PHRYGIAN, LOCRIAN, MYXO]
+SCALES = [IONIAN, AEOLIAN, WHOLE_TONE, GYPSY, LOCRIAN, PERSIAN]
 
 
 def msg_maker(scale_index):

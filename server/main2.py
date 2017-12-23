@@ -46,16 +46,15 @@ def parse_argv():
     global LED
     argv = sys.argv
     for arg in argv:
-        if arg == 'nb':
+        if arg == '--no-ble':
             # no ble
             BLE = False
-        elif arg == 'n':
+        elif arg == '--no-table':
             LED = False
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
-
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     parse_argv()
 
     scale_cube = ScaleCube()
@@ -93,16 +92,20 @@ def main():
     # make particles
     # particles_ws_consumer = particles_factory(midi_q)
 
-    table_server = LedTCPServer(
-        loop=loop,
-        scale_cube=scale_cube,
-        patch_cube=patch_cube,
-        color_seqs=[cms2, cms1])
+    if LED:
+        table_server = LedTCPServer(
+            loop=loop,
+            scale_cube=scale_cube,
+            patch_cube=patch_cube,
+            color_seqs=[cms2, cms1])
     # Set up metronome
     metronome_cbs = [
         clocker.metronome_cb, mono_seq_1.on_beat, mono_seq_2.on_beat,
-        table_server.metro_cb, drummer.on_beat
+        drummer.on_beat
     ]
+
+    if LED:
+        metronome_cbs.append(table_server.metro_cb)
 
     metronome = Metronome(metronome_cbs, starting_bpm)
 
@@ -128,7 +131,8 @@ def main():
 
     coros = [ws_server_coro, metronome.run()]
 
-    coros.extend(table_server.coros)
+    if LED:
+        coros.extend(table_server.coros)
 
     # Set Up mbits
     if BLE:
@@ -206,7 +210,7 @@ def make_vozuz_uart_cb(patch_cube):
             elif kind == 1:
                 logging.info(
                     'Power Cube of Scale: CONNECTED at {}'.format(payload))
-                
+
                 patch_cube.set_patch(payload)
             print(kind, payload)
         except Exception as e:

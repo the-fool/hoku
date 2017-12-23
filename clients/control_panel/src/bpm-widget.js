@@ -14,8 +14,9 @@ function makeBpmWidget2(node, bpmWs, clockWs) {
   clockWs.onmessage = function(d) {
     const data = JSON.parse(d.data);
     const tick = data.tick % 16 + 1;
-    flowerG.select(`#Petal-${tick} path`).classed('active', true);
-    flowerG.select(`#Petal-${tick === 1 ? 16 : tick - 1} path`).classed('active', false);
+    //console.log(tick, flowerG)
+    flowerG.select(`#Petal_${tick} path`).classed('active', true);
+    flowerG.select(`#Petal_${tick === 1 ? 16 : tick - 1} path`).classed('active', false);
   };
 
 }

@@ -121,6 +121,11 @@ main {
   max-width: 350px;
 
   #flower-svg {
+    .cls-1 {
+      fill: #101010;
+      opacity: 1;
+    }
+
     .petal {
       fill: transparent;
       &.active {
@@ -157,11 +162,16 @@ main {
       font-family: euro;
       text-transform: uppercase;
     }
-   
+
     .col {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+
+      &.reverb {
+        margin-left: 2rem;
+      }
+
     }
 
     .elements {
