@@ -129,7 +129,7 @@ def main():
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
 
-    coros = [ws_server_coro, metronome.run()]
+    coros = [scale_changer.coro(), patch_changer.coro(), ws_server_coro, metronome.run()]
 
     if LED:
         coros.extend(table_server.coros)
@@ -137,7 +137,7 @@ def main():
     # Set Up mbits
     if BLE:
         gupaz_cb = make_gupaz_uart_cb(scale_cube, loop)
-        vozuz_cb = make_vozuz_uart_cb(patch_cube)
+        vozuz_cb = make_vozuz_uart_cb(patch_cube, loop)
         setup_mbits(vozuz_cb, gupaz_cb)
 
         # and run the dbus loop
@@ -201,7 +201,7 @@ def make_gupaz_uart_cb(scale_cube, loop):
     return cb
 
 
-def make_vozuz_uart_cb(patch_cube):
+def make_vozuz_uart_cb(patch_cube, loop):
     def cb(l, data, x):
         try:
             (kind, payload) = [int(chr(c)) for c in data['Value']]
@@ -211,7 +211,7 @@ def make_vozuz_uart_cb(patch_cube):
                 logging.info(
                     'Power Cube of Scale: CONNECTED at {}'.format(payload))
 
-                patch_cube.set_patch(payload)
+                asyncio.ensure_future(patch_cube.set_patch(payload), loop=loop)
             print(kind, payload)
         except Exception as e:
             print(e)

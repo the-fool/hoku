@@ -38,7 +38,7 @@ class ScaleCube:
             msg_maker(init_scale))
 
     async def set_scale(self, index):
-        logging.info('Scale Cube changing to {}'.format(index))
+        print('Scale Cube changing to {}'.format(index))
         self.scale_index = index
         self.scale = self.scales[index]
 

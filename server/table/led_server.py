@@ -199,8 +199,8 @@ class LedTCPServer(asyncio.Protocol):
                 yurt[pane_i] = GREY
 
     def get_color(self):
-        scale = self.get_scale()
-        color = COLORS[scale + 1]
+        patch = self.get_patch()
+        color = COLORS[patch + 1]
         return color
 
     def on_recv_sensor_data(self, channel, data):

@@ -467,7 +467,8 @@ const YELLOW = 0xffda21;
 const GREEN = 0x33dd00;
 const BLUE = 0x1133cc;
 const VIOLET = 0x330044;
-const COLORS = [RED, ORANGE, YELLOW, GREEN, BLUE, VIOLET];
+const WHITE = 0xdddddd;
+const COLORS = [RED, YELLOW, GREEN, BLUE, VIOLET, WHITE];
 
 function setAll(a, b, c, d, e) {
   setA(a);
@@ -639,24 +640,25 @@ function initWs() {
   const patchWs = new WebSocket(wsUrl('patch'));
   patchWs.onmessage = function(d) {
     const data = JSON.parse(d.data);
-    UNIVERSES[data.patch]();
-    console.log(data);
+
+    const colorIndex = data.patch;
+    scene.fog = new THREE.FogExp2(COLORS[colorIndex], 0.00025);
   };
 
 
   const scaleWs = new WebSocket(wsUrl('scale'));
   scaleWs.onmessage = function(d) {
     const data = JSON.parse(d.data);
-    const colorIndex = data.scale;
 
+    UNIVERSES[data.scale]();
     console.log(data);
-    scene.fog = new THREE.FogExp2(COLORS[colorIndex], 0.00025);
   };
 }
 
 function viewWobble() {
-  const x = (Math.random() * 2000) - 1000;
-  const y = (Math.random() * 2000) - 1000;
+  const factor = 500;
+  const x = (Math.random() * factor) - (factor / 2);
+  const y = (Math.random() * factor) - (factor / 2);
   mouseX = x;
   mouseY = y;
 }
