@@ -79,7 +79,7 @@ function AttractorWidget(canvasContainer, controlsContainer, fxWs) {
         var size = Math.min(gl.viewportWidth, gl.viewportHeight);
         gl.viewport(0, 0, size, size);
 
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clearColor(0.01, 0.01, 0.0, 0.01);
         //gl.clear(gl.COLOR_BUFFER_BIT);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 

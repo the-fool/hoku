@@ -625,6 +625,9 @@ function initWs() {
   clockWs.onmessage = function(d) {
     const data = JSON.parse(d.data);
     const tick = data.tick % 16;
+    if (data.tick % (16 * 4) === 0) {
+      viewWobble();
+    }
     if (tick == 0) beat();
     circles.each(function(d, i) {
       const elm = d3.select(this);
@@ -649,6 +652,13 @@ function initWs() {
     console.log(data);
     scene.fog = new THREE.FogExp2(COLORS[colorIndex], 0.00025);
   };
+}
+
+function viewWobble() {
+  const x = (Math.random() * 2000) - 1000;
+  const y = (Math.random() * 2000) - 1000;
+  mouseX = x;
+  mouseY = y;
 }
 
 $(function() {

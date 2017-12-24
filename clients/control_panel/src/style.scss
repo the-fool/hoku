@@ -71,7 +71,7 @@ svg {
     text-transform: uppercase;
     border-left: none;
     .guidat-slider-bg {
-      width: 55%;
+      width: 65%;
     }
 
 
@@ -168,10 +168,12 @@ main {
       flex-direction: column;
       justify-content: space-between;
 
+      &.families {
+        justify-content: space-around;
+      }
       &.reverb {
         margin-left: 2rem;
       }
-
     }
 
     .elements {

@@ -2,11 +2,74 @@ import logging
 
 base = 60
 
+house_thump = [
+    1, 0, 1, 0,
+    0, 0, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 1, 0
+]  # yapf: disable
+
+house_thwck = [
+    0, 0, 0, 0,
+    1, 0, 0, 1,
+    0, 1, 0, 0,
+    1, 0, 0, 0
+]  # yapf: disable
+
+house_chkk = [
+    0, 0, 1, 0,
+    0, 0, 1, 0,
+    0, 0, 1, 0,
+    0, 0, 1, 0
+]  # yapf: disable
+
+house_zweep = [
+    0, 0, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 1
+]  # yapf: disable
+
 rhythm_house = [
-    [1, 0, 0, 0, 1, 0, 0, 0] * 2,
-    [0, 0, 1, 0, 0, 0, 1, 0] * 2,
-    [0, 0, 0, 1] * 4,
-    [1, 0, 0, 1, 0, 0, 1, 0] * 2
+    house_thump,
+    house_thwck,
+    house_chkk,
+    house_zweep
+]  # yapf: disable
+
+kraft_thump = [
+    1, 0, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 1, 0,
+    0, 1, 0, 0
+]  # yapf: disable
+
+kraft_thwck = [
+    0, 0, 0, 0,
+    1, 0, 0, 0,
+    0, 0, 0, 0,
+    1, 0, 0, 0
+]  # yapf: disable
+
+kraft_chkk = [
+    0, 0, 1, 1,
+    0, 0, 1, 1,
+    1, 0, 1, 1,
+    1, 0, 1, 1
+]  # yapf: disable
+
+kraft_zweep = [
+    1, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0
+]  # yapf: disable
+
+rhythm_kraft = [
+    kraft_thump,
+    kraft_thwck,
+    kraft_chkk,
+    kraft_zweep
 ]  # yapf: disable
 
 rhythm_assault = [
@@ -18,7 +81,7 @@ rhythm_assault = [
 
 all_rhythms = [
     rhythm_house,
-    rhythm_assault,
+    rhythm_kraft,
     rhythm_house,
     rhythm_assault
 ]

@@ -4,11 +4,11 @@ import serial_asyncio
 from server.modules.opc_client import OpcClientAsync
 
 RED = (209, 0, 0)
-ORANGE = (255, 102, 34)
+ORANGE = (200, 150, 34)
 YELLOW = (255, 218, 33)
 GREEN = (51, 221, 0)
 BLUE = (17, 51, 204)
-VIOLET = (51, 0, 68)
+VIOLET = (200, 10, 200)
 
 WHITE = (240, 240, 240)
 GOLD = (242, 202, 33)
@@ -22,14 +22,13 @@ DIM_FACTOR = 0.55
 N_0 = WHITE
 
 N_1 = RED
-N_2 = ORANGE
-N_3 = YELLOW
-N_4 = GREEN
-N_5 = BLUE
-N_6 = VIOLET
-N_7 = WHITE
+N_2 = YELLOW
+N_3 = GREEN
+N_4 = BLUE
+N_5 = VIOLET
+N_6 = WHITE
 
-COLORS = [N_0, N_1, N_2, N_3, N_4, N_5, N_6, N_7]
+COLORS = [N_0, N_1, N_2, N_3, N_4, N_5, N_6]
 
 L = 16
 
