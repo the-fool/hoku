@@ -416,41 +416,38 @@ function toggleVisuals() {
 init();
 animate();
 
+function defaultUniverse() {
+  SCALE_FACTOR = 1500;
+  A_MIN = -30;
+  A_MAX = 30;
+  B_MIN = .2;
+  B_MAX = 1.8;
+  C_MIN = 5;
+  C_MAX = 17;
+  D_MIN = 0;
+  D_MAX = 10;
+  E_MIN = 0;
+  E_MAX = 12;
+}
 
 function fiberyPlantCells() {
-  B_MIN = B_MAX = 30;
-  A_MIN = A_MAX = 2;
-  C_MIN = C_MAX = 3;
-
-  D_MIN = D_MAX = 1;
-
-  E_MIN = E_MAX = 0;
-
+  setAll(2, 30, 3, 1, 0);
   SCALE_FACTOR = 1600;
 }
 
+function circleWire() {
+  setAll(-22, 0.5, 7, 3.33, 7.9);
+  SCALE_FACTOR = 2000;
+}
 
 function sparseness() {
-  B_MIN = B_MAX = 300;
-  A_MIN = A_MAX = 2;
-  C_MIN = C_MAX = 3;
-
-  D_MIN = D_MAX = 1;
-
-  E_MIN = E_MAX = 0;
-
+  setAll(2, 300, 3, 1, 0);
   SCALE_FACTOR = 3000;
 }
 
 function spinalColumn() {
+  setAll(200, 300, 3, 1, 0);
   SCALE_FACTOR = 400;
-  A_MIN = A_MAX = 200;
-  B_MIN = B_MAX = 300;
-  C_MIN = C_MAX = 3;
-
-  D_MIN = D_MAX = 1;
-
-  E_MIN = E_MAX = 0;
 }
 
 function boxUniverse() {
@@ -462,6 +459,15 @@ function boxUniverse() {
   setAll(a, b, c, d, e);
   SCALE_FACTOR = 400;
 }
+
+const UNIVERSES = [defaultUniverse, boxUniverse, spinalColumn, sparseness, circleWire, fiberyPlantCells];
+const RED = 0xd10000;
+const ORANGE = 0xff6622;
+const YELLOW = 0xffda21;
+const GREEN = 0x33dd00;
+const BLUE = 0x1133cc;
+const VIOLET = 0x330044;
+const COLORS = [RED, ORANGE, YELLOW, GREEN, BLUE, VIOLET];
 
 function setAll(a, b, c, d, e) {
   setA(a);
@@ -503,7 +509,17 @@ function ejectConfig() {
     D_MAX,
     E_MIN,
     E_MAX
-  }
+  };
+}
+
+function ejectInstance() {
+  return {
+    a,
+    b,
+    c,
+    d,
+    e
+  };
 }
 
 
@@ -610,10 +626,28 @@ function initWs() {
     const data = JSON.parse(d.data);
     const tick = data.tick % 16;
     if (tick == 0) beat();
-    circles.each(function(d,i) {
+    circles.each(function(d, i) {
       const elm = d3.select(this);
       elm.classed('active', i === tick);
     });
+  };
+
+
+  const patchWs = new WebSocket(wsUrl('patch'));
+  patchWs.onmessage = function(d) {
+    const data = JSON.parse(d.data);
+    UNIVERSES[data.patch]();
+    console.log(data);
+  };
+
+
+  const scaleWs = new WebSocket(wsUrl('scale'));
+  scaleWs.onmessage = function(d) {
+    const data = JSON.parse(d.data);
+    const colorIndex = data.scale;
+
+    console.log(data);
+    scene.fog = new THREE.FogExp2(COLORS[colorIndex], 0.00025);
   };
 }
 
