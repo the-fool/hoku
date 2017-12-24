@@ -3,28 +3,33 @@ import logging
 import serial_asyncio
 from server.modules.opc_client import OpcClientAsync
 
-RED = (189, 22, 63)
+RED = (209, 0, 0)
+ORANGE = (255, 102, 34)
+YELLOW = (255, 218, 33)
+GREEN = (51, 221, 0)
+BLUE = (17, 51, 204)
+VIOLET = (51, 0, 68)
+
 WHITE = (240, 240, 240)
-BLUE = (121, 31, 117)
 GOLD = (242, 202, 33)
-GREEN = (35, 100, 52)
 PINK = (239, 53, 111)
 PURPLE = (139, 0, 139)
 TEAL = (52, 161, 152)
 GREY = (10, 10, 10)
 
 DIM_FACTOR = 0.55
+
 N_0 = WHITE
 
-N_1 = PURPLE
-N_2 = RED
-N_3 = GOLD
-N_4 = BLUE
-N_5 = GREEN
-N_6 = PINK
-N_7 = TEAL
+N_1 = RED
+N_2 = ORANGE
+N_3 = YELLOW
+N_4 = GREEN
+N_5 = BLUE
+N_6 = VIOLET
+N_7 = WHITE
 
-COLORS = [N_0, N_1, N_2, N_3, N_4, N_5, N_6, N_7, N_1, N_2, N_3, N_4, N_5]
+COLORS = [N_0, N_1, N_2, N_3, N_4, N_5, N_6, N_7]
 
 L = 16
 
@@ -245,6 +250,7 @@ class LedTCPServer(asyncio.Protocol):
     def dim(self, color):
         def _dim(c):
             return max(0, c * DIM_FACTOR)
+
         return (_dim(color[0]), _dim(color[1]), _dim(color[2]))
 
     def do_pixel_array(self):
@@ -261,15 +267,17 @@ class LedTCPServer(asyncio.Protocol):
             if self.rhythm_index is vase_index:
                 self.pixel_array[vase_index + VASE_1_OFFSET] = vase_color
             else:
-                self.pixel_array[vase_index + VASE_1_OFFSET] = self.dim(vase_color)
+                self.pixel_array[vase_index
+                                 + VASE_1_OFFSET] = self.dim(vase_color)
 
         for vase_index, vase_color in enumerate(vases[1]):
             if (self.ts // 16) % 16 is vase_index:
                 self.pixel_array[vase_index + VASE_2_OFFSET] = vase_color
             else:
-                self.pixel_array[vase_index + VASE_2_OFFSET] = self.dim(vase_color)
+                self.pixel_array[vase_index
+                                 + VASE_2_OFFSET] = self.dim(vase_color)
 
         for index, yurt_color in enumerate(yurt):
             for j in range(N_LEDS_IN_YURT_PANEL):
-                self.pixel_array[j + (index * N_LEDS_IN_YURT_PANEL) + YURT_OFFSET] = yurt_color
-
+                self.pixel_array[j + (index * N_LEDS_IN_YURT_PANEL) +
+                                 YURT_OFFSET] = yurt_color
