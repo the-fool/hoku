@@ -34,7 +34,7 @@ L = 16
 
 N_LEDS_IN_PETAL_STRIP = 6
 N_LEDS_IN_VASE = 1
-N_LEDS_IN_YURT_PANEL = 3
+N_LEDS_IN_YURT_PANEL = 4
 
 # petal strips start at pin 0
 PETAL_STRIP_PIN = 0
@@ -131,13 +131,13 @@ class LedTCPServer(asyncio.Protocol):
         coro1 = serial_asyncio.create_serial_connection(
             loop,
             lambda: Protocol(16, 127, self.channel_1_sensor),
-            '/dev/ttyACM0',
+            '/dev/ttyACM1',
             baudrate=9600)
 
         coro2 = serial_asyncio.create_serial_connection(
             loop,
             lambda: Protocol(16, 127, self.channel_2_sensor),
-            '/dev/ttyACM1',
+            '/dev/ttyACM0',
             baudrate=9600)
 
         self.coros = [coro1, coro2]

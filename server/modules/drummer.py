@@ -72,6 +72,77 @@ rhythm_kraft = [
     kraft_zweep
 ]  # yapf: disable
 
+
+disco_thump = [
+    1, 1, 0, 0,
+    0, 0, 0, 0,
+    0, 1, 0, 1,
+    0, 0, 0, 0
+]
+
+disco_thwck = [
+    0, 0, 0, 0,
+    1, 0, 0, 1,
+    0, 0, 0, 0,
+    1, 0, 0, 0
+]
+
+disco_chkk = [
+    1, 1, 1, 1,
+    0, 1, 1, 0,
+    1, 1, 1, 1,
+    0, 1, 1, 1
+]
+
+disco_zweep = [
+    0, 0, 1, 0,
+    0, 1, 0, 1,
+    0, 0, 1, 0,
+    0, 1, 0, 1
+]
+
+rhythm_disco = [
+    disco_thump,
+    disco_thwck,
+    disco_chkk,
+    disco_zweep
+]
+
+reg_thump = [
+    1, 0, 0, 0,
+    1, 0, 0, 0,
+    1, 0, 0, 0,
+    1, 0, 0, 0
+]
+
+reg_thwck = [
+    0, 0, 0, 1,
+    0, 0, 1, 0,
+    0, 0, 0, 1,
+    0, 0, 1, 0
+]
+
+reg_chkk = [
+    1, 0, 1, 0,
+    1, 1, 0, 0,
+    1, 0, 1, 0,
+    1, 0, 0, 1
+]
+
+reg_zweep = [
+    1, 0, 0, 0,
+    0, 0, 0, 0,
+    1, 0, 0, 0,
+    0, 0, 0, 0
+]
+
+rhythm_reg = [
+    reg_thump,
+    reg_thwck,
+    reg_chkk,
+    reg_zweep
+]
+
 rhythm_assault = [
     [1] * 16,
     [1] * 16,
@@ -82,8 +153,8 @@ rhythm_assault = [
 all_rhythms = [
     rhythm_house,
     rhythm_kraft,
-    rhythm_house,
-    rhythm_assault
+    rhythm_disco,
+    rhythm_reg,
 ]
 
 

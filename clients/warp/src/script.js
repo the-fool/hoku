@@ -629,7 +629,9 @@ function initWs() {
     if (data.tick % (16 * 4) === 0) {
       viewWobble();
     }
-    if (tick == 0) beat();
+
+    // if (tick == 0) beat();
+
     circles.each(function(d, i) {
       const elm = d3.select(this);
       elm.classed('active', i === tick);
