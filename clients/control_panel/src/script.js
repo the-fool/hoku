@@ -9,13 +9,14 @@ function wsConnect(name) {
 }
 
 
-const clockWs = wsConnect('clocker');
+// const clockWs = wsConnect('clocker');
 const bpmWs = wsConnect('metronome_changer');
 const drumWs = wsConnect('drummer');
 const drumFxWs = wsConnect('fx_reaper');
 const outerFxWs = wsConnect('fx_mini_1');
 const innerFxWs = wsConnect('fx_mini_2');
 
-makeBpmWidget2(BPM_CONTAINER, bpmWs, clockWs);
+
+makeBpmWidget2(BPM_CONTAINER, bpmWs);
 makeSynthWidget(SYNTH_CONTAINER, [outerFxWs, innerFxWs]);
 makeBeatWidget(BEAT_CONTAINER, drumWs, drumFxWs);

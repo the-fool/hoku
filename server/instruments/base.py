@@ -25,9 +25,9 @@ class BaseInstrument:
         velocity = BaseInstrument.midify(velocity)
         self._out_msg('note_on', note=note, velocity=velocity, channel=channel)
 
-    def note_off(self, note):
+    def note_off(self, note, channel=0):
         note = BaseInstrument.midify(note)
-        self._out_msg('note_off', note=note)
+        self._out_msg('note_off', note=note, channel=channel)
 
     def _control(self, control, value):
         control = self.midify(control)

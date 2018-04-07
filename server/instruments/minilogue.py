@@ -2,6 +2,7 @@ from .base import BaseInstrument
 
 
 class Minilogue(BaseInstrument):
+    
     AMP_ATTACK = 16
     AMP_DECAY = 17
     AMP_RELEASE = 19
@@ -16,6 +17,15 @@ class Minilogue(BaseInstrument):
 
     VCO_1_LEVEL = 39
     VCO_2_LEVEL = 40
+
+    def __init__(self, output_name, base_prog=79, base_bank=1, *args, **kwargs):
+        super(Minilogue, self).__init__(output_name, *args, **kwargs)
+        self._control(0, 0)
+        self._control(32, 1)
+        self.base_prog = base_prog
+
+    def program_change(self, program):
+        super(Minilogue, self).program_change(self.base_prog + program)
 
     def level(self, value):
         self._control(self.VCO_2_LEVEL, value)

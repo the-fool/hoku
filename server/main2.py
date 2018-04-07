@@ -22,7 +22,8 @@ from .modules import Metronome,\
     MonoSequencer,\
     ScaleCube,\
     PatchCube,\
-    Drummer
+    Drummer,\
+    Slidey
 
 from .instruments.four_by_four import instruments
 from .table import LedTCPServer
@@ -39,11 +40,13 @@ loop = asyncio.get_event_loop()
 
 BLE = True
 LED = True
+SLIDEY = True
 
 
 def parse_argv():
     global BLE
     global LED
+    global SLIDEY
     argv = sys.argv
     for arg in argv:
         if arg == '--no-ble':
@@ -51,6 +54,8 @@ def parse_argv():
             BLE = False
         elif arg == '--no-table':
             LED = False
+        elif arg == '--no-slidey':
+            SLIDEY = False
 
 
 def main():
@@ -86,8 +91,13 @@ def main():
     clocker = Clocker()
 
     # make DRUMMER
-    drummer = Drummer(midi_devs=[instruments[1]])
+    drummer = Drummer(midi_devs=[instruments[2]])
     drummer_changer = DrummerChanger(drummer=drummer)
+
+    # make SLIDEY
+    if SLIDEY:
+        slidey = Slidey(
+            scale_cube=scale_cube, loop=loop, instruments=[instruments[2]])
 
     # make particles
     # particles_ws_consumer = particles_factory(midi_q)
@@ -129,7 +139,14 @@ def main():
 
     ws_server_coro = ws_server_factory(behaviors=ws_behaviors)
 
-    coros = [scale_changer.coro(), patch_changer.coro(), ws_server_coro, metronome.run()]
+    coros = [
+        scale_changer.coro(),
+        patch_changer.coro(), ws_server_coro,
+        metronome.run()
+    ]
+
+    if SLIDEY:
+        coros.append(slidey.coro)
 
     if LED:
         coros.extend(table_server.coros)
@@ -227,23 +244,23 @@ def make_fx_cbs():
 
     reaper = instruments[2]
 
-    def scale_it(cb):
+    def scale_it(cb, maximum=127):
         def scaled(x):
-            cb(scale(x, 0, 1, 0, 127))
+            cb(scale(x, 0, 1, 0, maximum))
 
         return scaled
 
     def make_mini_cbs(i):
         mini = instruments[i]
+
         return {
             'cutoff': scale_it(mini.cutoff),
             'attack': scale_it(mini.eg_attack),
             'release': scale_it(mini.amp_release),
             'decay': scale_it(mini.amp_decay),
-            'volume': scale_it(mini.level),
+            'volume': scale_it(getattr(reaper, 'mini_{}_vol'.format(i + 1)), maximum=80),
             'reverb': scale_it(getattr(reaper, 'mini_{}_verb'.format(i + 1))),
-            'distortion':
-            scale_it(getattr(reaper, 'mini_{}_dist'.format(i + 1)))
+            'distortion': scale_it(getattr(reaper, 'mini_{}_dist'.format(i + 1)))
         }
 
     reaper_cbs = {'drum_reverb': scale_it(reaper.drum_verb)}

@@ -105,7 +105,7 @@ void doIt() {
 
     setColor(face);
 
-    sprintf(buffer, "1%d", contacted);
+    sprintf(buffer, "1%d", face);
     uart->send(buffer);
     uBit.sleep(500);
   }

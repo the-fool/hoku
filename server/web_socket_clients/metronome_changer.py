@@ -4,10 +4,10 @@ import json
 
 
 def msg_maker(bpm: int):
-    return json.dumps({'current_bpm': bpm})
+    return json.dumps({'current_bpm': bpm, 'real_bpm': scale_it(bpm)})
 
 
-bpm_range = (30, 190)
+bpm_range = (10, 190)
 
 
 def scale_it(val):

@@ -609,18 +609,20 @@ function wobble() {
 
 
 function initWs() {
-
   const wsUrl = path => `ws://${window.location.hostname}:7700/${path}`;
   const bpmWs = new WebSocket(wsUrl('metronome_changer'));
 
-  const bpmToWarpSpeed = d3.scaleLinear().domain([0, 1]).range([0.3, 30]).clamp(true);
+  const bpmToWarpSpeed = d3.scaleLinear()
+        .domain([0, 1])
+        .range([0.3, 30])
+        .clamp(true);
 
   bpmWs.onmessage = function(d) {
     const data = JSON.parse(d.data);
     speed = bpmToWarpSpeed(data.current_bpm);
-    console.log(data);
   };
 
+  /*
   const circles = d3.selectAll('#Time_Dots circle');
   const clockWs = new WebSocket(wsUrl('clocker'));
   clockWs.onmessage = function(d) {
@@ -638,6 +640,7 @@ function initWs() {
     });
   };
 
+  */
 
   const patchWs = new WebSocket(wsUrl('patch'));
   patchWs.onmessage = function(d) {

@@ -131,13 +131,13 @@ class LedTCPServer(asyncio.Protocol):
         coro1 = serial_asyncio.create_serial_connection(
             loop,
             lambda: Protocol(16, 127, self.channel_1_sensor),
-            '/dev/ttyACM1',
+            '/dev/arduino0',
             baudrate=9600)
 
         coro2 = serial_asyncio.create_serial_connection(
             loop,
             lambda: Protocol(16, 127, self.channel_2_sensor),
-            '/dev/ttyACM0',
+            '/dev/arduino1',
             baudrate=9600)
 
         self.coros = [coro1, coro2]

@@ -3,16 +3,16 @@ import logging
 base = 60
 
 house_thump = [
-    1, 0, 1, 0,
-    0, 0, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 1, 0
+    1, 0, 0, 0,
+    1, 0, 0, 0,
+    1, 0, 0, 0,
+    1, 0, 0, 0
 ]  # yapf: disable
 
 house_thwck = [
     0, 0, 0, 0,
-    1, 0, 0, 1,
-    0, 1, 0, 0,
+    1, 0, 0, 0,
+    0, 0, 0, 0,
     1, 0, 0, 0
 ]  # yapf: disable
 
@@ -25,9 +25,9 @@ house_chkk = [
 
 house_zweep = [
     0, 0, 0, 0,
-    0, 0, 1, 0,
+    1, 0, 0, 0,
     0, 0, 0, 0,
-    0, 0, 0, 1
+    1, 0, 0, 0
 ]  # yapf: disable
 
 rhythm_house = [
@@ -52,7 +52,7 @@ kraft_thwck = [
 ]  # yapf: disable
 
 kraft_chkk = [
-    0, 0, 1, 1,
+    1, 0, 1, 1,
     0, 0, 1, 1,
     1, 0, 1, 1,
     1, 0, 1, 1
@@ -60,8 +60,8 @@ kraft_chkk = [
 
 kraft_zweep = [
     1, 0, 0, 0,
-    0, 0, 0, 0,
-    0, 0, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 1, 0,
     0, 0, 0, 0
 ]  # yapf: disable
 
@@ -96,9 +96,9 @@ disco_chkk = [
 
 disco_zweep = [
     0, 0, 1, 0,
-    0, 1, 0, 1,
-    0, 0, 1, 0,
-    0, 1, 0, 1
+    0, 0, 0, 1,
+    0, 0, 0, 0,
+    0, 1, 0, 0
 ]
 
 rhythm_disco = [
@@ -143,6 +143,40 @@ rhythm_reg = [
     reg_zweep
 ]
 
+idle_thump = [
+    1, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 0
+]
+
+idle_thwck = [
+    0, 0, 0, 0,
+    1, 0, 0, 0,
+    0, 0, 0, 0,
+    1, 0, 0, 0
+]
+
+idle_chkk = [
+    1, 0, 1, 0,
+    1, 0, 1, 0,
+    1, 0, 1, 0,
+    1, 0, 1, 0
+]
+
+idle_zweep = [
+    0, 0, 1, 0,
+    0, 0, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 0
+]
+
+rhythm_idle = [
+    idle_thump,
+    idle_thwck,
+    idle_chkk,
+    idle_zweep
+]
 rhythm_assault = [
     [1] * 16,
     [1] * 16,
@@ -154,7 +188,7 @@ all_rhythms = [
     rhythm_house,
     rhythm_kraft,
     rhythm_disco,
-    rhythm_reg,
+    rhythm_idle,
 ]
 
 
@@ -180,4 +214,5 @@ class Drummer:
         for i, el in enumerate(rhythm):
             if self.elements[i] and el[step] is not 0:
                 for drum_machine in self.midi_devs:
+                    drum_machine.note_off(base_note + i, channel=2)
                     drum_machine.note_on(base_note + i, channel=2)

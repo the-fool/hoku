@@ -1,7 +1,6 @@
 import logging
 from server.observable import observable_factory
 
-
 class PatchCube:
     def __init__(self, instruments=[]):
         self.patch = 0
@@ -18,5 +17,6 @@ class PatchCube:
             await self.on_change_emit(self.patch)
 
     def bcast(self):
+        print('PATCHING', self.patch)
         for i in self.instruments:
             i.program_change(self.patch)
