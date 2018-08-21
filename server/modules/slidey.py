@@ -48,11 +48,9 @@ class Slidey:
 
         if self.prev_x > 0:
             self.note_off(self.prev_note)
-
-
-        
         self.prev_x = x
         self.prev_note = note
+
     def note_on(self, note):
         print('note', note)
         for i in self.instruments:

@@ -9,3 +9,4 @@ organelle/public
 ./**/public/
 ./**/public
 public
+.mypy_cache

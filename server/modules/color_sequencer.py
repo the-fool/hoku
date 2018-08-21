@@ -64,7 +64,6 @@ class ColorSequencer:
             self._real_notes[i] = pitch
 
     async def msg_consumer(self, kind, payload, uuid):
-
         if kind == 'rhythm':
             index = payload['index']
             value = payload['value']
