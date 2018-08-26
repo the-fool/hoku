@@ -1,0 +1,3 @@
+certifi==2018.8.13
+mido==1.2.8
+SimpleWebSocketServer==0.1.0
